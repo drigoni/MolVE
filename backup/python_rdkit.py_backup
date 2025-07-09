@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+"""
+Python RDKit wrapper for molecular calculations
+Provides SMILES validation, property calculation, and structure generation
+"""
+
+import sys
+import json
+import traceback
+from rdkit import Chem
+from rdkit.Chem import Descriptors, Crippen, rdMolDescriptors
+from rdkit.Chem import Draw
+from rdkit.Chem import AllChem
+import io
+import base64
+
+def validate_smiles(smiles):
+    """Validate SMILES string using RDKit"""
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        return {"valid": mol is not None}
+    except Exception as e:
+        return {"valid": False, "error": str(e)}
+
+def calculate_properties(smiles):
+    """Calculate molecular properties using RDKit"""
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            raise ValueError("Invalid SMILES string")
+        
+        # Calculate properties
+        formula = rdMolDescriptors.CalcMolFormula(mol)
+        mw = Descriptors.MolWt(mol)
+        logp = Crippen.MolLogP(mol)
+        hbd = rdMolDescriptors.CalcNumHBD(mol)
+        hba = rdMolDescriptors.CalcNumHBA(mol)
+        
+        return {
+            "properties": {
+                "formula": formula,
+                "molecularWeight": round(mw, 2),
+                "logP": round(logp, 2),
+                "hbd": hbd,
+                "hba": hba
+            }
+        }
+    except Exception as e:
+        raise ValueError(f"Property calculation failed: {str(e)}")
+
+def generate_2d_structure(smiles):
+    """Generate 2D SVG structure using RDKit"""
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            raise ValueError("Invalid SMILES string")
+        
+        # Generate 2D coordinates
+        AllChem.Compute2DCoords(mol)
+        
+        # Generate SVG
+        drawer = Draw.rdMolDraw2D.MolDraw2DSVG(400, 400)
+        drawer.DrawMolecule(mol)
+        drawer.FinishDrawing()
+        svg = drawer.GetDrawingText()
+        
+        return {"svg": svg}
+    except Exception as e:
+        raise ValueError(f"2D structure generation failed: {str(e)}")
+
+def canonicalize_smiles(smiles):
+    """Canonicalize SMILES string using RDKit"""
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            raise ValueError("Invalid SMILES string")
+        
+        canonical = Chem.MolToSmiles(mol, canonical=True)
+        return {"canonical": canonical}
+    except Exception as e:
+        raise ValueError(f"SMILES canonicalization failed: {str(e)}")
+
+def generate_sdf(smiles):
+    """Generate SDF format with 3D coordinates using RDKit"""
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            raise ValueError("Invalid SMILES string")
+        
+        # Add hydrogens and generate 3D coordinates
+        mol_with_h = Chem.AddHs(mol)
+        AllChem.EmbedMolecule(mol_with_h, randomSeed=42)
+        AllChem.OptimizeMoleculeConfs(mol_with_h)
+        
+        # Generate SDF
+        sdf = Chem.MolToMolBlock(mol_with_h)
+        return {"sdf": sdf}
+    except Exception as e:
+        raise ValueError(f"SDF generation failed: {str(e)}")
+
+def process_sdf(sdf_content):
+    """Process SDF content and extract molecular information"""
+    try:
+        molecules = []
+        sdf_blocks = sdf_content.split('$$$$')
+        
+        for block in sdf_blocks:
+            if block.strip():
+                mol = Chem.MolFromMolBlock(block)
+                if mol is not None:
+                    smiles = Chem.MolToSmiles(mol)
+                    # Calculate properties
+                    props = calculate_properties(smiles)
+                    molecules.append({
+                        "smiles": smiles,
+                        "properties": props["properties"],
+                        "sdf": block.strip()
+                    })
+        
+        return {"molecules": molecules}
+    except Exception as e:
+        raise ValueError(f"SDF processing failed: {str(e)}")
+
+def main():
+    if len(sys.argv) != 3:
+        print(json.dumps({"error": "Usage: python_rdkit.py <operation> <input>"}))
+        sys.exit(1)
+    
+    operation = sys.argv[1]
+    input_data = sys.argv[2]
+    
+    try:
+        if operation == "validate":
+            result = validate_smiles(input_data)
+        elif operation == "properties":
+            result = calculate_properties(input_data)
+        elif operation == "structure2d":
+            result = generate_2d_structure(input_data)
+        elif operation == "canonicalize":
+            result = canonicalize_smiles(input_data)
+        elif operation == "generate_sdf":
+            result = generate_sdf(input_data)
+        elif operation == "process_sdf":
+            result = process_sdf(input_data)
+        else:
+            result = {"error": f"Unknown operation: {operation}"}
+        
+        print(json.dumps(result))
+    except Exception as e:
+        error_result = {
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+        print(json.dumps(error_result))
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

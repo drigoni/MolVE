@@ -1,0 +1,6 @@
+pandas>=2.2.3,<3
+pillow
+cairocffi
+matplotlib
+rdkit-pypi
+numpy<2

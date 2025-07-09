@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>Molecular Evaluation Platform</title>
+    <!-- Include 3Dmol.js library as specified -->
+    <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+    <script>
+      window.addEventListener('load', function() {
+        if (window.$3Dmol) {
+          console.log('3Dmol.js loaded successfully');
+        } else {
+          console.error('3Dmol.js failed to load');
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
