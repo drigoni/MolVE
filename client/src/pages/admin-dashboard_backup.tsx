@@ -459,11 +459,12 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="molecules">Molecules</TabsTrigger>
             <TabsTrigger value="evaluations">Evaluations</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
@@ -909,6 +910,51 @@ export default function AdminDashboard() {
                 )}
               </DialogContent>
             </Dialog>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Evaluation Categories Chart */}
+                <EvaluationCategoryChart 
+                  stats={stats}
+                  isLoading={statsLoading}
+                />
+
+                {/* Evaluation Frequency Distribution */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Evaluation Frequency Distribution</CardTitle>
+                    <p className="text-sm text-gray-600">Shows how many molecules have received each number of evaluations</p>
+                  </CardHeader>
+                  <CardContent>
+                    {moleculeStatsLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-scientific-blue"></div>
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={chartData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis 
+                            dataKey="evaluationCount" 
+                            label={{ value: 'Number of Evaluations', position: 'insideBottom', offset: -5 }}
+                          />
+                          <YAxis 
+                            label={{ value: 'Number of Molecules', angle: -90, position: 'insideLeft' }}
+                          />
+                          <Tooltip 
+                            formatter={(value, name) => [value, 'Molecules']}
+                            labelFormatter={(label) => `${label} evaluations`}
+                          />
+                          <Bar dataKey="moleculeCount" fill="#2E86AB" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="settings">
