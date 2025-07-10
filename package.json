@@ -74,6 +74,7 @@
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "react": "^18.3.1",
+    "react-chemdoodle": "^0.0.7",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.55.0",

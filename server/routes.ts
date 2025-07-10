@@ -156,6 +156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               skipped++;
               continue;
             }
+            console.log(`Inserting molecule with SMILES: ${structure.properties.sas.toString()}`);
 
             const moleculeData = insertMoleculeSchema.parse({
               smiles: structure.smiles,
@@ -163,7 +164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               logP: structure.properties.logP.toString(),
               hbd: structure.properties.hbd,
               hba: structure.properties.hba,
-              sas: structure.properties.sas,
+              sas: structure.properties.sas.toString(),
               sdf: structure.sdf,
             });
 

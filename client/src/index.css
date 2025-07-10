@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+.relative .ChemDoodleWebComponent {
+  border: 1px solid white;
+}
+
 :root {
   --background: hsl(0, 0%, 100%);
   --foreground: hsl(20, 14.3%, 4.1%);
