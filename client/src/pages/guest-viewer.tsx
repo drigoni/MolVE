@@ -6,11 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { TestTube, LogIn, Eye, RefreshCw } from "lucide-react";
 import type { Molecule } from "@shared/schema";
+import { ViewerCanvas } from "react-chemdoodle";
 
 export default function GuestViewer() {
   const { toast } = useToast();
   const [currentMolecule, setCurrentMolecule] = useState<Molecule | null>(null);
-  const moleculeElementRef = useRef<HTMLDivElement | null>(null);
+  const molecule2DElementRef = useRef<HTMLDivElement | null>(null);
+  const molecule3DElementRef = useRef<HTMLDivElement | null>(null);
   const moleculeInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Check if guest viewing is allowed
@@ -79,65 +81,60 @@ export default function GuestViewer() {
   };
 
   const handleRenderSDF = async () => {
-    if (!moleculeElementRef.current || !moleculeInputRef.current) return;
-
-    const element = moleculeElementRef.current;
-    const sdfData = moleculeInputRef.current.value;
-
-    if (sdfData.trim() === "") {
-      toast({
-        title: "Error",
-        description: "No SDF data available",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Clear any existing content
-    element.innerHTML = "";
-
-    // Set proper dimensions for the container
-    element.style.width = "100%";
-    element.style.height = "100%";
-    element.style.position = "relative";
-    element.style.border = "0px solid #ccc";
-
-    const $3Dmol = await import("3dmol");
-    const config =  {
-      backgroundColor: "white",
-      width: element.offsetWidth,
-      height: element.offsetHeight,
-    };
-    console.log("Creating 3Dmol viewer with config:", config);
-    const viewer = $3Dmol.createViewer(element, config);
-    // viewerRef.current = $3Dmol.createViewer(element, config);
-    // const viewer = viewerRef.current;
-    
-    try {
-      // Strip everything after "M  END"
+    // 2D rendering with JSmol
+    if (molecule3DElementRef.current && moleculeInputRef.current) {
+      const element3D = molecule3DElementRef.current;
+      const sdfData = moleculeInputRef.current.value;
       const sdfCore = "\n" + sdfData;
-      const model = viewer.addModel(sdfCore, "sdf");
-      // Set styles: use sticks for bonds, spheres for atoms with better radius
-      viewer.setStyle({}, {
-        stick: {
-          radius: 0.15,
-          color: "gray"
-        },
-        sphere: {
-          radius: 0.4
-        },
-        surface: { opacity: 0.4, color: 'cyan' },
-      });
-      viewer.spin(true, 0.1, 0.1, 0.1);
-      viewer.zoomTo();
-      viewer.render();  
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to render molecule structure",
-        variant: "destructive",
-      });
-      console.error("3DMol rendering error:", error);
+      
+      element3D.innerHTML = ""; // Clear previous
+
+      if (sdfData.trim() === "") {
+        toast({
+          title: "Error",
+          description: "No SDF data available",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const Info = {
+        width: element3D.offsetWidth,
+        height: element3D.offsetHeight,
+        debug: false,
+        color: "white",
+        use: "HTML5",
+        j2sPath: "http://localhost:5000/JSmol/j2s",
+        script: `
+          set frank OFF;
+          set antialiasDisplay ON;
+          set platformSpeed 3;
+          load DATA 'sdf'\n${sdfCore}\nEND 'sdf';
+          zoom 80; // Zoom to fit the molecule in the view
+          spin on; // Enable continuous rotation
+          spin y 5; // Spin around the y-axis at a speed of 1
+          spin x 5; // Spin around the y-axis at a speed of 1
+        `,
+        disableInitialConsole: true,
+        console: "none",
+        allowJavaScript: true,
+        info: "",
+        addSelectionOptions: false,
+        disableJ2SLoadMonitor: true,
+        loadMonitorTitle: "",
+        loadMonitorMessage: "",
+        showInfo: false,
+      };
+
+      const applet = Jmol.getApplet("jmolApplet3D", Info);
+      element3D.innerHTML = Jmol.getAppletHtml(applet);
+      Jmol.script(applet, "set antialiasDisplay ON");
+
+      // need to remove this, as not needed but added automatically by JSmol
+      const placeholder = element3D.querySelector('img[width="0"][height="0"]');
+      if (placeholder) {
+        placeholder.remove();
+      }
     }
   };
 
@@ -329,20 +326,20 @@ export default function GuestViewer() {
                 )}
               </Card>
 
-              {/* Molecular Structure */}
+              {/* Molecular 3D Structure */}
               <Card className="relative">
                 <CardHeader>
-                  <CardTitle>Molecular Structure</CardTitle>
+                  <CardTitle>Molecular 3D Structure</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
                     {/* 3D Structure */}
                     <div className="space-y-2">
                       <div
-                        id="molecule-viewer-container"
-                        ref={moleculeElementRef}
-                        className={`bg-gray-100 rounded-lg border border-gray-200 min-h-[400px] flex items-center justify-center block ${fetchRandomMolecule.isPending ? 'opacity-30' : ''}`}
-                        style={{ width: "100%", height: "400px" }}
+                        id="molecule-3Dviewer-container"
+                        ref={molecule3DElementRef}
+                        className={`rounded-lg border border-gray-200 min-h-[400px] flex items-center justify-center block ${fetchRandomMolecule.isPending ? 'opacity-30' : ''}`}
+                        style={{ width: "100%", height: "400px", border: "0px solid #ccc"}}
                       >
                         {!currentMolecule && !fetchRandomMolecule.isPending ? (
                           <div className="text-gray-500 text-center">
@@ -377,6 +374,69 @@ export default function GuestViewer() {
                   </div>
                 )}
               </Card>
+
+              {/* Molecular 2D Structure */}
+              <Card className="relative">
+                <CardHeader>
+                  <CardTitle>Molecular 2D Structure</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
+                    {/* 2D Structure */}
+                    <div className="space-y-2 min-h-[400px] flex items-center justify-center"> 
+                      {!currentMolecule && !fetchRandomMolecule.isPending ? (
+                        <div className="text-gray-500 text-center">
+                          <TestTube className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            No Molecules Available
+                          </h3>
+                          <p className="text-sm text-gray-500 mb-4">
+                            The molecule database is currently empty. An administrator
+                            needs to upload molecules before they can be viewed.
+                          </p>
+                        </div>
+                      ) : !currentMolecule ? (
+                        <div className="text-gray-500 text-center">
+                          <p>2D structure will render automatically</p>
+                        </div>
+                      ) : (
+                        <ViewerCanvas
+                          key={`${currentMolecule?.id}-${Date.now()}`}
+                          id="molecule-2d-viewer"
+                          data={{ mol: "\n" + currentMolecule.sdf }}
+                          width={400}
+                          height={400}
+                          canvasStyle={{
+                            atoms_useJMOLColors: true,
+                            bonds_width_2D: 1,
+                            bonds_saturationWidthAbs_2D: 20,
+                            bonds_hashSpacing_2D: 1,
+                            atoms_font_size_2D: 32,
+                            atoms_font_families_2D: ['Helvetica', 'Arial', 'sans-serif'],
+                            atoms_displayTerminalCarbonLabels_2D: true,
+                          }}
+                          moleculeStyle={{
+                            scaleToAverageBondLength: 50,
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+                
+                {/* Loading overlay for 2D structure */}
+                {fetchRandomMolecule.isPending && (
+                  <div className="absolute inset-0 bg-white/80 rounded-lg flex items-center justify-center">
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-scientific-blue"></div>
+                      <span className="ml-3 text-gray-600 text-sm">
+                        Loading 2D structure...
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </Card>
+              
 
               {/* SDF Data Display */}
               <Card className="hidden">

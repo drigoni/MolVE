@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { NavigationHeader } from "@/components/navigation-header";
@@ -175,9 +175,11 @@ export default function UserEvaluation() {
         debug: false,
         color: "white",
         use: "HTML5",
-        j2sPath: "http://localhost:5000/JSmol/j2s/",
+        j2sPath: "http://localhost:5000/JSmol/j2s",
         script: `
           set frank OFF;
+          set antialiasDisplay ON;
+          set platformSpeed 3;
           load DATA 'sdf'\n${sdfCore}\nEND 'sdf';
           zoom 80; // Zoom to fit the molecule in the view
           spin on; // Enable continuous rotation
@@ -185,6 +187,16 @@ export default function UserEvaluation() {
           spin x 5; // Spin around the y-axis at a speed of 1
         `,
         disableInitialConsole: true,
+        console: "none",
+        allowJavaScript: true,
+        info: "",
+        addSelectionOptions: false,
+        disableJ2SLoadMonitor: true,
+        loadMonitorTitle: "",
+        loadMonitorMessage: "",
+        showInfo: false,
+        // pixelRatio: 100, // or 3 for even higher DPI
+        // useHardwareScaling: true, // optional, lets JSmol auto-detect
       };
 
       const applet = Jmol.getApplet("jmolApplet3D", Info);
@@ -471,7 +483,7 @@ export default function UserEvaluation() {
                       <div
                         id="molecule-3Dviewer-container"
                         ref={molecule3DElementRef}
-                        className={`bg-gray-100 rounded-lg border border-gray-200 min-h-[400px] flex items-center justify-center block ${moleculeLoading ? 'opacity-30' : ''}`}
+                        className={`rounded-lg border border-gray-200 min-h-[400px] flex items-center justify-center block ${moleculeLoading ? 'opacity-30' : ''}`}
                         style={{ width: "100%", height: "400px", border: "0px solid #ccc"}}
                       >
                         {!currentMolecule && !moleculeLoading ? (
@@ -512,14 +524,12 @@ export default function UserEvaluation() {
                     <div className="space-y-2 min-h-[400px] flex items-center justify-center"> {/* Center content */}
                       {currentMolecule?.sdf ? (
                         <ViewerCanvas
-                          key={currentMolecule?.id}
+                          key={`${currentMolecule?.id}-${Date.now()}`}
                           id="molecule-2d-viewer"
                           data={{ mol: "\n" + currentMolecule.sdf }}
-                          width="400"
-                          height="400"
-                          style={{ width: "100%", height: "100%" }}
+                          width={400}
+                          height={400}
                           canvasStyle={{
-                            margin: "0 auto",
                             atoms_useJMOLColors: true,
                             bonds_width_2D: 1,
                             bonds_saturationWidthAbs_2D: 20,
@@ -529,7 +539,7 @@ export default function UserEvaluation() {
                             atoms_displayTerminalCarbonLabels_2D: true,
                           }}
                           moleculeStyle={{
-                            scaleToAverageBondLength: 100,
+                            scaleToAverageBondLength: 50,
                           }}
                         />
                       ) : (
