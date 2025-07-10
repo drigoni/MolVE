@@ -1,3 +1,7 @@
+# NOTE: app service is built from the Dockerfile in the current directory.
+# The Dockerfile should be set up to install the necessary dependencies and run the application.
+# All the dependendencies are saved inside the container, without caching them on the host machine. 
+
 services:
   app:
     build: 
@@ -19,10 +23,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - .:/app
-      - /app/node_modules
-      # - ./local_storages/node_modules:/app/node_modules
     networks:
       - app_network
     restart: unless-stopped
@@ -37,8 +37,8 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./local_storages/postgres:/var/lib/postgresql/data
-      - ./initial_configs/database_init.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./docker_storages/postgres:/var/lib/postgresql/data
+      - ./initial_configs/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d molecular_app"]
       interval: 10s
