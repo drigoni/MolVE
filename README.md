@@ -1,1 +1,1 @@
-# MolecularChecker
+# AI-MolVEP
