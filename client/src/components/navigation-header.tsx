@@ -61,7 +61,7 @@ export function NavigationHeader() {
               <Link href="/">
                 <h1 className="text-2xl font-source font-bold text-scientific-blue cursor-pointer">
                   <Atom className="inline mr-2 h-6 w-6" />
-                  MolEval
+                  AI-MolVEP
                 </h1>
               </Link>
             </div>
