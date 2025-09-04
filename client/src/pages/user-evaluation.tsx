@@ -175,7 +175,7 @@ export default function UserEvaluation() {
         debug: false,
         color: "white",
         use: "HTML5",
-        j2sPath: "http://localhost:5000/JSmol/j2s",
+        j2sPath: "/JSmol/j2s",
         script: `
           set frank OFF;
           set antialiasDisplay ON;
