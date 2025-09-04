@@ -195,7 +195,7 @@ export default function GuestViewer() {
             <div className="flex items-center">
               <TestTube className="h-8 w-8 text-scientific-blue mr-3" />
               <h1 className="text-xl font-semibold text-gray-900">
-                Molecular Structure Viewer
+                AI-MolVE
               </h1>
               <span className="ml-3 px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
                 Guest Mode

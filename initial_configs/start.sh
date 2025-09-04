@@ -3,7 +3,7 @@
 # Exit on any error
 set -e
 
-echo "Starting Molecular Evaluation Platform..."
+echo "Starting AI-MolVE..."
 
 # Wait for database to be ready (with timeout)
 echo "Waiting for database to be ready..."
