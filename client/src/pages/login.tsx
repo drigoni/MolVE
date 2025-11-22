@@ -60,7 +60,7 @@ export default function Login() {
               <Atom className="h-6 w-6 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-source text-scientific-blue">AI-MolVE Login</CardTitle>
+          <CardTitle className="text-2xl font-source text-scientific-blue">MolVE Login</CardTitle>
           <p className="text-sm text-gray-600">
             Sign in to access the molecular evaluation platform
           </p>

@@ -3,7 +3,7 @@
 # Exit on any error
 set -e
 
-echo "Starting AI-MolVE..."
+echo "Starting MolVE..."
 
 # Wait for database to be ready (with timeout)
 echo "Waiting for database to be ready..."
