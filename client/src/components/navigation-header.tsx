@@ -18,8 +18,10 @@ export function NavigationHeader() {
   const navigation = isAdmin ? [
     { name: "Admin Dashboard", href: "/" },
     { name: "Evaluate", href: "/evaluate" },
+    { name: "Guide", href: "/guide" },
   ] : [
     { name: "Evaluate", href: "/" },
+    { name: "Guide", href: "/guide" },
   ];
 
   const logout = useMutation({

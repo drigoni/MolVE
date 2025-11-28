@@ -10,6 +10,7 @@ import AdminDashboard from "@/pages/admin-dashboard";
 import UserEvaluation from "@/pages/user-evaluation";
 import GuestViewer from "@/pages/guest-viewer";
 import NotFound from "@/pages/not-found";
+import Guide from "@/pages/guide";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -45,12 +46,14 @@ function Router() {
           <Route path="/admin-dashboard" component={AdminDashboard} />
           <Route path="/evaluate" component={UserEvaluation} />
           <Route path="/guest" component={GuestViewer} />
+          <Route path="/guide" component={Guide} />
         </>
       ) : (
         <>
           <Route path="/" component={UserEvaluation} />
           <Route path="/evaluate" component={UserEvaluation} />
           <Route path="/guest" component={GuestViewer} />
+          <Route path="/guide" component={Guide} />
         </>
       )}
       <Route component={NotFound} />
