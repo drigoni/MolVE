@@ -65,7 +65,6 @@ export async function setupAuth(app: Express) {
         id: user.id,
         username: user.username,
         role: user.role,
-        redirectTo: user.role === 'admin' ? '/admin-dashboard' : '/evaluate'
       });
     } catch (error) {
       console.error("Login error:", error);
