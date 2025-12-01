@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isAdmin, isUser, authenticateApiToken } from "./auth";
+import { setupAuth, isAuthenticated, isAdmin, isUser, authenticateApiToken, requireAdminApiToken } from "./auth";
 import { processSdfMolecule } from "./services/molecular";
 import { insertMoleculeSchema, insertEvaluationSchema } from "@shared/schema";
 import multer from "multer";
@@ -74,8 +74,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // --- Public API for programmatic access ---
 
-  // Add a molecule via API token
-  app.post("/api/v1/molecules", authenticateApiToken, async (req, res) => {
+  // Add a molecule via API token (admin-owned tokens only)
+  app.post("/api/v1/molecules", authenticateApiToken, requireAdminApiToken, async (req, res) => {
     try {
       const { smiles, molecularWeight, logP, hbd, hba, sas, sdf } = req.body;
       if (!smiles) {

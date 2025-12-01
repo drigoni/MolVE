@@ -153,6 +153,15 @@ export const authenticateApiToken: RequestHandler = async (req, res, next) => {
   }
 };
 
+// Middleware to require that the authenticated API token belongs to an admin user
+export const requireAdminApiToken: RequestHandler = (req, res, next) => {
+  const apiUser = (req as any).apiUser;
+  if (!apiUser || apiUser.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin API token required' });
+  }
+  next();
+};
+
 async function initializeAdminUser() {
   try {
     const adminUser = await storage.getUserByUsername('admin');
