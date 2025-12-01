@@ -249,20 +249,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/v1/evaluations/download-csv", authenticateApiToken, requireAdminApiToken, async (req, res) => {
     try {
       const dataset = await storage.getEvaluationDataset();
-
+      // CSV header: keep it aligned with the values below (15 columns)
       const csvHeader =
-        "SMILES,Molecular Weight,LogP,Evaluation,Notes,Username,Date\n";
+        "Molecule ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,Evaluation,Notes,Issue Solubility,Issue Synthetic Accessibility,Issue Dimension,Issue Permeability,Username,Date\n";
+
       const csvData = dataset
-        .map(
-          (row) =>
-            `"${row.smiles}","${row.molecularWeight}","${row.logP}","${row.evaluation}","${row.notes || ""}","${row.username}","${row.evaluationDate}"`,
-        )
+        .map((row) => {
+          const date =
+            row.evaluationDate instanceof Date
+              ? row.evaluationDate.toISOString()
+              : row.evaluationDate ?? "";
+
+          const esc = (v: unknown) => String(v ?? "").replace(/"/g, '""');
+
+          const values = [
+            esc(row.moleculeId),
+            esc(row.smiles),
+            esc(row.molecularWeight),
+            esc(row.logP),
+            esc(row.hbd ?? ""),
+            esc(row.hba ?? ""),
+            esc(row.sas ?? ""),
+            esc(row.evaluation),
+            esc(row.notes || ""),
+            row.issueSolubility ? "1" : "0",
+            row.issueSyntheticAccessibility ? "1" : "0",
+            row.issueDimension ? "1" : "0",
+            row.issuePermeability ? "1" : "0",
+            esc(row.username),
+            esc(date),
+          ];
+
+          return values.map((v) => `"${v}"`).join(",");
+        })
         .join("\n");
+
+      const timestamp = new Date().toISOString().replace(/:/g, "-");
+      const filename = `Molve_evaluations_${timestamp}.csv`;
 
       res.setHeader("Content-Type", "text/csv");
       res.setHeader(
         "Content-Disposition",
-        'attachment; filename="evaluations.csv"',
+        `attachment; filename="${filename}"`,
       );
       res.send(csvHeader + csvData);
     } catch (error) {
