@@ -380,6 +380,49 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDownloadMolecule = async (molecule: Molecule) => {
+    try {
+      const response = await fetch("/api/admin/molecules/download", {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to download molecule");
+      }
+
+      // We already expose a CSV for all molecules; for a single
+      // molecule we reuse its properties and create a small Blob.
+      const header = "ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,Created At\n";
+      const createdAt = molecule.createdAt
+        ? new Date(molecule.createdAt).toISOString()
+        : "";
+      const row = `${molecule.id},"${molecule.smiles}",${molecule.molecularWeight},${molecule.logP},${molecule.hbd},${molecule.hba},${molecule.sas},"${createdAt}"`;
+      const csvContent = header + row;
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `molecule_${molecule.id}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Molecule download",
+        description: `CSV for molecule ${molecule.id} downloaded`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Download error",
+        description: error.message || "Could not download molecule",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleGuestViewingToggle = (checked: boolean) => {
     setAllowGuestViewing(checked);
     updateSettings.mutate(checked);
@@ -593,6 +636,18 @@ export default function AdminDashboard() {
                               LogP
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              HBD
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              HBA
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              SAS
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Created
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Actions
                             </th>
                           </tr>
@@ -610,14 +665,37 @@ export default function AdminDashboard() {
                                 {molecule.logP}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <Button
-                                  onClick={() => deleteMolecule.mutate(molecule.id)}
-                                  disabled={deleteMolecule.isPending}
-                                  variant="destructive"
-                                  size="sm"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {molecule.hbd ?? "-"}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {molecule.hba ?? "-"}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {molecule.sas ?? "-"}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {molecule.createdAt ? new Date(molecule.createdAt).toLocaleDateString() : "-"}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <div className="flex gap-2">
+                                  <Button
+                                    onClick={() => handleDownloadMolecule(molecule)}
+                                    variant="outline"
+                                    size="sm"
+                                    className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                                  >
+                                    <Download className="h-4 w-4 mr-1" />
+                                    Download
+                                  </Button>
+                                  <Button
+                                    onClick={() => deleteMolecule.mutate(molecule.id)}
+                                    disabled={deleteMolecule.isPending}
+                                    variant="destructive"
+                                    size="sm"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </td>
                             </tr>
                           ))}
