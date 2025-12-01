@@ -44,7 +44,7 @@ export default function UserApiTokens() {
     onSuccess: (token) => {
       toast({
         title: "API Token Created",
-        description: "Copy this token now; it won't be shown again.",
+        description: "Copy this token now.",
       });
       setApiTokens((prev) => [token, ...prev]);
     },
