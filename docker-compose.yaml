@@ -32,6 +32,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      python-service:
+        condition: service_started
     networks:
       - app_network
     restart: unless-stopped
@@ -43,6 +45,8 @@ services:
     build:
       context: ./python_service
       dockerfile: Dockerfile
+    volumes:
+      - ./python_service:/app
     environment:
       - PYTHONUNBUFFERED=1
     networks:
