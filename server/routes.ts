@@ -104,19 +104,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get a random molecule and its current aggregate score
-  app.get("/api/v1/molecules/next", authenticateApiToken, async (req, res) => {
+  // Bulk add molecules from SDF via API token (admin-owned tokens only)
+  app.post(
+    "/api/v1/molecules/upload-sdf",
+    authenticateApiToken,
+    requireAdminApiToken,
+    upload.single("sdf"),
+    async (req, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ message: "No SDF file uploaded" });
+        }
+
+        const sdfContent = req.file.buffer.toString();
+
+        // Split SDF content into individual molecule blocks
+        const molBlocks = sdfContent
+          .split("$$$$")
+          .filter((block) => block.trim());
+
+        let processed = 0;
+        let skipped = 0;
+        const moleculesData = [];
+
+        for (const molBlock of molBlocks) {
+          if (!molBlock.trim()) continue;
+          const cleanBlock =
+            molBlock.trim() +
+            (molBlock.trim().endsWith("$$$$") ? "" : "\n$$$$");
+
+          try {
+            // Process each SDF molecule block
+            const structure = await processSdfMolecule(cleanBlock);
+
+            // Check if molecule already exists
+            const existing = await storage.getMoleculeBySmiles(
+              structure.smiles,
+            );
+            if (existing) {
+              skipped++;
+              continue;
+            }
+
+            const moleculeData = insertMoleculeSchema.parse({
+              smiles: structure.smiles,
+              molecularWeight: structure.properties.molecularWeight.toString(),
+              logP: structure.properties.logP.toString(),
+              hbd: structure.properties.hbd,
+              hba: structure.properties.hba,
+              sas: structure.properties.sas.toString(),
+              sdf: structure.sdf,
+            });
+
+            moleculesData.push(moleculeData);
+            processed++;
+          } catch (error) {
+            console.error(`Error processing SDF molecule via API:`, error);
+            skipped++;
+          }
+        }
+
+        // Batch insert molecules
+        if (moleculesData.length > 0) {
+          await storage.createMolecules(moleculesData);
+        }
+
+        res.json({
+          message: `Successfully processed ${processed} molecules from SDF via API, skipped ${skipped}`,
+          processed,
+          skipped,
+        });
+      } catch (error) {
+        console.error("Error uploading SDF via API:", error);
+        res.status(500).json({ message: "Failed to upload SDF file via API" });
+      }
+    },
+  );
+
+  // Get molecules dataset as SDF (all API users)
+  app.get("/api/v1/molecules/download-sdf", authenticateApiToken, async (req, res) => {
     try {
-      const molecule = await storage.getRandomMolecule("all");
-      if (!molecule) {
-        return res.status(404).json({ message: "No molecules available" });
+      const molecules = await storage.getAllMolecules();
+
+      // Build a very simple SDF by concatenating stored SDF blocks when available.
+      const sdfBlocks = molecules
+        .map((mol) => mol.sdf)
+        .filter((sdf) => sdf && sdf.trim().length > 0) as string[];
+
+      if (sdfBlocks.length === 0) {
+        return res.status(404).json({ message: "No SDF data available" });
       }
 
-      // Derive simple score from evaluations if needed later
-      res.json(molecule);
+      const sdfContent = sdfBlocks
+        .map((block) => {
+          const trimmed = block.trimEnd();
+          return trimmed.endsWith("$$$$") ? trimmed : trimmed + "\n$$$$";
+        })
+        .join("\n");
+
+      res.setHeader("Content-Type", "chemical/x-mdl-sdfile");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="molecules_dataset_${new Date().toISOString().split("T")[0]}.sdf"`,
+      );
+      res.send(sdfContent);
     } catch (error) {
-      console.error("Error fetching molecule via API:", error);
-      res.status(500).json({ message: "Failed to fetch molecule" });
+      console.error("Error downloading molecules SDF via API:", error);
+      res.status(500).json({ message: "Failed to download molecules SDF dataset" });
+    }
+  });
+
+  // Get molecules dataset as CSV (all API users)
+  app.get("/api/v1/molecules/download-csv", authenticateApiToken, async (req, res) => {
+    try {
+      const molecules = await storage.getAllMolecules();
+
+      const csvHeader =
+        "ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,Created At\n";
+
+      const csvRows = molecules
+        .map((mol) => {
+          const createdAt = mol.createdAt
+            ? new Date(mol.createdAt).toISOString()
+            : "";
+          return `${mol.id},"${mol.smiles}",${mol.molecularWeight},${mol.logP},${mol.hbd},${mol.hba},${mol.sas},"${createdAt}"`;
+        })
+        .join("\n");
+
+      const csvContent = csvHeader + csvRows;
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="molecules_dataset_${new Date().toISOString().split("T")[0]}.csv"`,
+      );
+      res.send(csvContent);
+    } catch (error) {
+      console.error("Error downloading molecules CSV via API:", error);
+      res.status(500).json({ message: "Failed to download molecules CSV dataset" });
+    }
+  });
+
+  // Get evaluations dataset as CSV (admin API tokens only)
+  app.get("/api/v1/evaluations/download-csv", authenticateApiToken, requireAdminApiToken, async (req, res) => {
+    try {
+      const dataset = await storage.getEvaluationDataset();
+
+      const csvHeader =
+        "SMILES,Molecular Weight,LogP,Evaluation,Notes,Username,Date\n";
+      const csvData = dataset
+        .map(
+          (row) =>
+            `"${row.smiles}","${row.molecularWeight}","${row.logP}","${row.evaluation}","${row.notes || ""}","${row.username}","${row.evaluationDate}"`,
+        )
+        .join("\n");
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="evaluations.csv"',
+      );
+      res.send(csvHeader + csvData);
+    } catch (error) {
+      console.error("Error downloading evaluations CSV via API:", error);
+      res.status(500).json({ message: "Failed to download evaluations CSV" });
     }
   });
 
