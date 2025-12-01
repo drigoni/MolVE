@@ -11,6 +11,7 @@ import UserEvaluation from "@/pages/user-evaluation";
 import GuestViewer from "@/pages/guest-viewer";
 import NotFound from "@/pages/not-found";
 import Guide from "@/pages/guide";
+import UserApiTokens from "@/pages/user-api-tokens";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -45,6 +46,7 @@ function Router() {
           <Route path="/" component={AdminDashboard} />
           <Route path="/admin-dashboard" component={AdminDashboard} />
           <Route path="/evaluate" component={UserEvaluation} />
+          <Route path="/api-tokens" component={UserApiTokens} />
           <Route path="/guest" component={GuestViewer} />
           <Route path="/guide" component={Guide} />
         </>
@@ -52,6 +54,7 @@ function Router() {
         <>
           <Route path="/" component={UserEvaluation} />
           <Route path="/evaluate" component={UserEvaluation} />
+          <Route path="/api-tokens" component={UserApiTokens} />
           <Route path="/guest" component={GuestViewer} />
           <Route path="/guide" component={Guide} />
         </>

@@ -3,6 +3,7 @@ import {
   molecules,
   evaluations,
   settings,
+  apiTokens,
   type User,
   type InsertUser,
   type Molecule,
@@ -13,6 +14,7 @@ import {
   type InsertSetting,
   type EvaluationWithMolecule,
   type DashboardStats,
+  type ApiToken,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
@@ -51,6 +53,13 @@ export interface IStorage {
   getSetting(key: string): Promise<Setting | undefined>;
   setSetting(setting: InsertSetting): Promise<Setting>;
   getAllowGuestViewing(): Promise<boolean>;
+
+  // API token operations
+  getUserApiTokens(userId: number): Promise<ApiToken[]>;
+  createApiToken(userId: number): Promise<ApiToken>;
+  getApiToken(id: number): Promise<ApiToken | undefined>;
+  getApiTokenByToken(token: string): Promise<ApiToken | undefined>;
+  deleteApiToken(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -323,6 +332,32 @@ export class DatabaseStorage implements IStorage {
   async getAllowGuestViewing(): Promise<boolean> {
     const setting = await this.getSetting('allow_guest_viewing');
     return setting ? (setting.value as boolean) : false;
+  }
+
+  // API token operations
+  async getUserApiTokens(userId: number): Promise<ApiToken[]> {
+    return await db.select().from(apiTokens).where(eq(apiTokens.userId, userId)).orderBy(apiTokens.createdAt);
+  }
+
+  async createApiToken(userId: number): Promise<ApiToken> {
+    const raw = `${userId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const tokenValue = Buffer.from(raw).toString('base64url');
+    const [token] = await db.insert(apiTokens).values({ userId, token: tokenValue }).returning();
+    return token;
+  }
+
+  async getApiToken(id: number): Promise<ApiToken | undefined> {
+    const [token] = await db.select().from(apiTokens).where(eq(apiTokens.id, id));
+    return token;
+  }
+
+  async getApiTokenByToken(token: string): Promise<ApiToken | undefined> {
+    const [row] = await db.select().from(apiTokens).where(eq(apiTokens.token, token));
+    return row;
+  }
+
+  async deleteApiToken(id: number): Promise<void> {
+    await db.delete(apiTokens).where(eq(apiTokens.id, id));
   }
 }
 

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isAdmin, isUser } from "./auth";
+import { setupAuth, isAuthenticated, isAdmin, isUser, authenticateApiToken } from "./auth";
 import { processSdfMolecule } from "./services/molecular";
 import { insertMoleculeSchema, insertEvaluationSchema } from "@shared/schema";
 import multer from "multer";
@@ -25,7 +25,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
   });
 
+  // --- API token management for logged-in users ---
+
+  // List current user's API tokens
+  app.get("/api/api-tokens", isAuthenticated, async (req, res) => {
+    try {
+      const tokens = await storage.getUserApiTokens(req.session.userId!);
+      res.json(tokens);
+    } catch (error) {
+      console.error("Error fetching API tokens:", error);
+      res.status(500).json({ message: "Failed to fetch API tokens" });
+    }
+  });
+
+  // Create a new API token for current user
+  app.post("/api/api-tokens", isAuthenticated, async (req, res) => {
+    try {
+      const token = await storage.createApiToken(req.session.userId!);
+      res.json(token);
+    } catch (error) {
+      console.error("Error creating API token:", error);
+      res.status(500).json({ message: "Failed to create API token" });
+    }
+  });
+
+  // Revoke an API token (must belong to current user or admin)
+  app.delete("/api/api-tokens/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const token = await storage.getApiToken(id);
+      if (!token) {
+        return res.status(404).json({ message: "Token not found" });
+      }
+
+      if (req.session.role !== "admin" && token.userId !== req.session.userId) {
+        return res.status(403).json({ message: "Not allowed to revoke this token" });
+      }
+
+      await storage.deleteApiToken(id);
+      res.json({ message: "Token revoked" });
+    } catch (error) {
+      console.error("Error revoking API token:", error);
+      res.status(500).json({ message: "Failed to revoke API token" });
+    }
+  });
+
   // Only SDF upload is supported for molecule management
+
+  // --- Public API for programmatic access ---
+
+  // Add a molecule via API token
+  app.post("/api/v1/molecules", authenticateApiToken, async (req, res) => {
+    try {
+      const { smiles, molecularWeight, logP, hbd, hba, sas, sdf } = req.body;
+      if (!smiles) {
+        return res.status(400).json({ message: "smiles is required" });
+      }
+
+      const existing = await storage.getMoleculeBySmiles(smiles);
+      if (existing) {
+        return res.json(existing);
+      }
+
+      const molecule = await storage.createMolecule({
+        smiles,
+        molecularWeight: molecularWeight ?? null,
+        logP: logP ?? null,
+        hbd: hbd ?? null,
+        hba: hba ?? null,
+        sas: sas ?? null,
+        sdf: sdf ?? null,
+      } as any);
+
+      res.status(201).json(molecule);
+    } catch (error) {
+      console.error("Error creating molecule via API:", error);
+      res.status(500).json({ message: "Failed to create molecule" });
+    }
+  });
+
+  // Get a random molecule and its current aggregate score
+  app.get("/api/v1/molecules/next", authenticateApiToken, async (req, res) => {
+    try {
+      const molecule = await storage.getRandomMolecule("all");
+      if (!molecule) {
+        return res.status(404).json({ message: "No molecules available" });
+      }
+
+      // Derive simple score from evaluations if needed later
+      res.json(molecule);
+    } catch (error) {
+      console.error("Error fetching molecule via API:", error);
+      res.status(500).json({ message: "Failed to fetch molecule" });
+    }
+  });
 
   app.get(
     "/api/admin/molecules",

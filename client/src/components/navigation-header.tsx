@@ -15,14 +15,18 @@ export function NavigationHeader() {
 
   const isAdmin = user?.role === 'admin';
   
-  const navigation = isAdmin ? [
-    { name: "Admin Dashboard", href: "/" },
-    { name: "Evaluate", href: "/evaluate" },
-    { name: "Guide", href: "/guide" },
-  ] : [
-    { name: "Evaluate", href: "/" },
-    { name: "Guide", href: "/guide" },
-  ];
+  const navigation = isAdmin
+    ? [
+        { name: "Admin Dashboard", href: "/" },
+        { name: "Evaluate", href: "/evaluate" },
+        { name: "API Access", href: "/api-tokens" },
+        { name: "Guide", href: "/guide" },
+      ]
+    : [
+        { name: "Evaluate", href: "/" },
+        { name: "API Access", href: "/api-tokens" },
+        { name: "Guide", href: "/guide" },
+      ];
 
   const logout = useMutation({
     mutationFn: async () => {

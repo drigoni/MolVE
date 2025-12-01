@@ -125,6 +125,34 @@ export async function setupAuth(app: Express) {
   });
 }
 
+// Middleware to authenticate using API token in Authorization header
+export const authenticateApiToken: RequestHandler = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'API token required' });
+    }
+
+    const token = authHeader.slice('Bearer '.length).trim();
+    const apiToken = await storage.getApiTokenByToken(token);
+    if (!apiToken) {
+      return res.status(401).json({ message: 'Invalid API token' });
+    }
+
+    const user = await storage.getUser(apiToken.userId);
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid API token user' });
+    }
+
+    // Attach minimal user context for downstream handlers
+    (req as any).apiUser = { id: user.id, username: user.username, role: user.role };
+    next();
+  } catch (error) {
+    console.error('API token auth error:', error);
+    res.status(500).json({ message: 'API authentication failed' });
+  }
+};
+
 async function initializeAdminUser() {
   try {
     const adminUser = await storage.getUserByUsername('admin');

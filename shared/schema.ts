@@ -60,6 +60,14 @@ export const evaluations = pgTable("evaluations", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// API tokens table for programmatic access
+export const apiTokens = pgTable("api_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Settings table for application configuration
 export const settings = pgTable("settings", {
   id: serial("id").primaryKey(),
@@ -72,6 +80,7 @@ export const settings = pgTable("settings", {
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   evaluations: many(evaluations),
+  apiTokens: many(apiTokens),
 }));
 
 export const moleculesRelations = relations(molecules, ({ many }) => ({
@@ -86,6 +95,13 @@ export const evaluationsRelations = relations(evaluations, ({ one }) => ({
   molecule: one(molecules, {
     fields: [evaluations.moleculeId],
     references: [molecules.id],
+  }),
+}));
+
+export const apiTokensRelations = relations(apiTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [apiTokens.userId],
+    references: [users.id],
   }),
 }));
 
@@ -113,6 +129,7 @@ export type InsertEvaluation = z.infer<typeof insertEvaluationSchema>;
 export type Evaluation = typeof evaluations.$inferSelect;
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
 export type Setting = typeof settings.$inferSelect;
+export type ApiToken = typeof apiTokens.$inferSelect;
 
 // Evaluation with relations
 export type EvaluationWithMolecule = Evaluation & {
