@@ -380,6 +380,71 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDownloadMolecule = (molecule: Molecule) => {
+    if (!molecule.sdf || !molecule.sdf.trim()) {
+      toast({
+        title: "No SDF data",
+        description: "This molecule does not have SDF content stored.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const blob = new Blob([molecule.sdf], { type: "chemical/x-mdl-sdfile" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `molecule_${molecule.id}.sdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Molecule download",
+      description: `SDF for molecule ${molecule.id} downloaded`,
+    });
+  };
+
+  const handleDownloadSdfDataset = () => {
+    if (!molecules || molecules.length === 0) {
+      toast({
+        title: "No molecules",
+        description: "There are no molecules to download.",
+      });
+      return;
+    }
+
+    const sdfContent = molecules
+      .map((mol) => mol.sdf || "")
+      .filter((block) => block.trim().length > 0)
+      .join("\n");
+
+    if (!sdfContent.trim()) {
+      toast({
+        title: "No SDF data",
+        description: "Molecules do not have SDF content stored.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const blob = new Blob([sdfContent], { type: "chemical/x-mdl-sdfile" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `molecules_${new Date().toISOString().split("T")[0]}.sdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "SDF download",
+      description: "Molecules SDF dataset downloaded",
+    });
+  };
+
   const handleGuestViewingToggle = (checked: boolean) => {
     setAllowGuestViewing(checked);
     updateSettings.mutate(checked);
@@ -561,6 +626,15 @@ export default function AdminDashboard() {
                         <Download className="h-4 w-4 mr-2" />
                         Download CSV
                       </Button>
+                      <Button
+                        onClick={handleDownloadSdfDataset}
+                        variant="outline"
+                        size="sm"
+                        className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download SDF
+                      </Button>
                       <Button 
                         onClick={() => deleteAllMolecules.mutate()}
                         disabled={deleteAllMolecules.isPending}
@@ -593,6 +667,18 @@ export default function AdminDashboard() {
                               LogP
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              HBD
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              HBA
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              SAS
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Created
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Actions
                             </th>
                           </tr>
@@ -610,14 +696,36 @@ export default function AdminDashboard() {
                                 {molecule.logP}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <Button
-                                  onClick={() => deleteMolecule.mutate(molecule.id)}
-                                  disabled={deleteMolecule.isPending}
-                                  variant="destructive"
-                                  size="sm"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {molecule.hbd ?? "-"}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {molecule.hba ?? "-"}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {molecule.sas ?? "-"}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {molecule.createdAt ? new Date(molecule.createdAt).toLocaleDateString() : "-"}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <div className="flex gap-2">
+                                  <Button
+                                    onClick={() => handleDownloadMolecule(molecule)}
+                                    variant="outline"
+                                    size="sm"
+                                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                                  >
+                                    <Download className="h-4 w-4 mr-1" />
+                                  </Button>
+                                  <Button
+                                    onClick={() => deleteMolecule.mutate(molecule.id)}
+                                    disabled={deleteMolecule.isPending}
+                                    variant="destructive"
+                                    size="sm"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -663,6 +771,9 @@ export default function AdminDashboard() {
                             Evaluation
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Issues
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Notes
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -684,14 +795,38 @@ export default function AdminDashboard() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                evaluation.evaluation === 'positive' 
+                                evaluation.evaluation === 'prioritize'
                                   ? 'bg-green-100 text-green-800'
-                                  : evaluation.evaluation === 'negative'
+                                  : evaluation.evaluation === 'do_not_prioritize'
                                   ? 'bg-red-100 text-red-800'
                                   : 'bg-yellow-100 text-yellow-800'
                               }`}>
                                 {evaluation.evaluation}
                               </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {(() => {
+                                const issues: string[] = [];
+                                if (evaluation.issueSolubility) issues.push("Solubility");
+                                if (evaluation.issueSyntheticAccessibility) issues.push("Synthetic Accessibility");
+                                if (evaluation.issueDimension) issues.push("Dimension");
+                                if (evaluation.issuePermeability) issues.push("Permeability");
+
+                                return issues.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {issues.map((issue) => (
+                                      <span
+                                        key={issue}
+                                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700"
+                                      >
+                                        {issue}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 text-xs">—</span>
+                                );
+                              })()}
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
                               {evaluation.notes || '—'}

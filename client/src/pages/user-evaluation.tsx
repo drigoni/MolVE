@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -21,6 +22,7 @@ export default function UserEvaluation() {
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
   const [selectedEvaluation, setSelectedEvaluation] = useState("");
+  const [structureIssues, setStructureIssues] = useState<string[]>([]);
   const molecule2DElementRef = useRef<HTMLDivElement | null>(null);
   const molecule3DElementRef = useRef<HTMLDivElement | null>(null);
   const moleculeInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -91,9 +93,11 @@ export default function UserEvaluation() {
     mutationFn: async ({
       evaluation,
       notes,
+      structureIssues,
     }: {
       evaluation: string;
       notes?: string;
+      structureIssues?: string[];
     }) => {
       if (!currentMolecule) throw new Error("No molecule to evaluate");
 
@@ -101,6 +105,11 @@ export default function UserEvaluation() {
         moleculeId: currentMolecule.id,
         evaluation,
         notes,
+        issueSolubility: structureIssues?.includes("solubility") ?? false,
+        issueSyntheticAccessibility:
+          structureIssues?.includes("synthetic_accessibility") ?? false,
+        issueDimension: structureIssues?.includes("dimension") ?? false,
+        issuePermeability: structureIssues?.includes("permeability") ?? false,
       });
       return response.json();
     },
@@ -113,6 +122,7 @@ export default function UserEvaluation() {
       // Clear notes, selected evaluation and fetch a new molecule
       setNotes("");
       setSelectedEvaluation("");
+      setStructureIssues([]);
       fetchNewMolecule.mutate();
     },
     onError: (error: any) => {
@@ -148,6 +158,7 @@ export default function UserEvaluation() {
     submitEvaluation.mutate({
       evaluation: selectedEvaluation,
       notes: notes.trim() || undefined,
+      structureIssues,
     });
   };
 
@@ -270,42 +281,25 @@ export default function UserEvaluation() {
                     
 
                     <div className="space-y-3">
-                      <Label>Select evaluation type:</Label>
+                      <Label>Select evaluation priority:</Label>
                       <RadioGroup
                         value={selectedEvaluation}
                         onValueChange={setSelectedEvaluation}
                       >
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem
-                            value="awesome"
-                            id="awesome"
+                            value="prioritize"
+                            id="prioritize"
                             disabled={
                               submitEvaluation.isPending || !currentMolecule
                             }
                           />
                           <Label
-                            htmlFor="awesome"
+                            htmlFor="prioritize"
                             className="flex items-center cursor-pointer"
                           >
-                            <Star className="h-4 w-4 mr-2 text-purple-600" />
-                            Awesome
-                          </Label>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem
-                            value="positive"
-                            id="positive"
-                            disabled={
-                              submitEvaluation.isPending || !currentMolecule
-                            }
-                          />
-                          <Label
-                            htmlFor="positive"
-                            className="flex items-center cursor-pointer"
-                          >
-                            <ThumbsUp className="h-4 w-4 mr-2 text-green-600" />
-                            Good
+                            <Star className="h-4 w-4 mr-2 text-green-600" />
+                            Prioritize
                           </Label>
                         </div>
 
@@ -321,45 +315,57 @@ export default function UserEvaluation() {
                             htmlFor="borderline"
                             className="flex items-center cursor-pointer"
                           >
-                            <Meh className="h-4 w-4 mr-2 text-yellow-600" />
+                            <ThumbsUp className="h-4 w-4 mr-2 text-green-600" />
                             Borderline
                           </Label>
                         </div>
 
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem
-                            value="negative"
-                            id="negative"
+                            value="do_not_prioritize"
+                            id="do_not_prioritize"
                             disabled={
                               submitEvaluation.isPending || !currentMolecule
                             }
                           />
                           <Label
-                            htmlFor="negative"
+                            htmlFor="do_not_prioritize"
                             className="flex items-center cursor-pointer"
                           >
                             <ThumbsDown className="h-4 w-4 mr-2 text-red-600" />
-                            Bad
-                          </Label>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem
-                            value="futuristic"
-                            id="futuristic"
-                            disabled={
-                              submitEvaluation.isPending || !currentMolecule
-                            }
-                          />
-                          <Label
-                            htmlFor="futuristic"
-                            className="flex items-center cursor-pointer"
-                          >
-                            <Eye className="h-4 w-4 mr-2 text-cyan-600" />
-                            Futuristic
+                            Do Not Prioritize
                           </Label>
                         </div>
                       </RadioGroup>
+                    </div>
+
+                    <div className="space-y-3 pt-2">
+                      <Label>Issues (select all that apply):</Label>
+                      <div className="space-y-2">
+                        {["Solubility", "Synthetic Accessibility", "Dimension", "Permeability"].map((issue) => {
+                          const value = issue.toLowerCase().replace(/\s+/g, "_");
+                          const checked = structureIssues.includes(value);
+                          return (
+                            <div key={value} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={value}
+                                checked={checked}
+                                disabled={submitEvaluation.isPending || !currentMolecule}
+                                onCheckedChange={(isChecked) => {
+                                  setStructureIssues((prev) => {
+                                    if (isChecked) {
+                                      if (prev.includes(value)) return prev;
+                                      return [...prev, value];
+                                    }
+                                    return prev.filter((v) => v !== value);
+                                  });
+                                }}
+                              />
+                              <Label htmlFor={value}>{issue}</Label>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     <div className="space-y-2">

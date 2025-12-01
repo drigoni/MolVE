@@ -327,6 +327,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   );
 
+  // Download full molecules dataset as SDF
+  app.get(
+    "/api/admin/molecules/download-sdf",
+    isAuthenticated,
+    isAdmin,
+    async (req, res) => {
+      try {
+        const molecules = await storage.getAllMolecules();
+
+        if (!molecules || molecules.length === 0) {
+          return res.status(404).json({ message: "No molecules available" });
+        }
+
+        // Concatenate stored SDF blocks; each entry already represents a full
+        // SDF record for a single molecule as returned by processSdfMolecule.
+        const sdfContent = molecules
+          .map((mol) => mol.sdf || "")
+          .filter((block) => block.trim().length > 0)
+          .join("\n");
+
+        if (!sdfContent.trim()) {
+          return res
+            .status(500)
+            .json({ message: "Molecules do not have SDF content stored" });
+        }
+
+        res.setHeader("Content-Type", "chemical/x-mdl-sdfile");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="molecules_${new Date().toISOString().split("T")[0]}.sdf"`,
+        );
+        res.send(sdfContent);
+      } catch (error) {
+        console.error("Error downloading SDF dataset:", error);
+        res
+          .status(500)
+          .json({ message: "Failed to download SDF molecules dataset" });
+      }
+    },
+  );
+
   app.get(
     "/api/admin/evaluations",
     isAuthenticated,
@@ -601,20 +642,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const dataset = await storage.getEvaluationDataset();
 
-        // Convert to CSV format
+        // CSV header: keep it aligned with the values below (15 columns)
         const csvHeader =
-          "SMILES,Molecular Weight,LogP,Evaluation,Notes,Username,Date\n";
+          "Molecule ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,Evaluation,Notes,Issue Solubility,Issue Synthetic Accessibility,Issue Dimension,Issue Permeability,Username,Date\n";
+
         const csvData = dataset
-          .map(
-            (row) =>
-              `"${row.smiles}","${row.molecularWeight}","${row.logP}","${row.evaluation}","${row.notes || ""}","${row.username}","${row.evaluationDate}"`,
-          )
+          .map((row) => {
+            const date =
+              row.evaluationDate instanceof Date
+                ? row.evaluationDate.toISOString()
+                : row.evaluationDate ?? "";
+
+            const esc = (v: unknown) => String(v ?? "").replace(/"/g, '""');
+
+            const values = [
+              esc(row.moleculeId),
+              esc(row.smiles),
+              esc(row.molecularWeight),
+              esc(row.logP),
+              esc(row.hbd ?? ""),
+              esc(row.hba ?? ""),
+              esc(row.sas ?? ""),
+              esc(row.evaluation),
+              esc(row.notes || ""),
+              row.issueSolubility ? "1" : "0",
+              row.issueSyntheticAccessibility ? "1" : "0",
+              row.issueDimension ? "1" : "0",
+              row.issuePermeability ? "1" : "0",
+              esc(row.username),
+              esc(date),
+            ];
+
+            return values.map((v) => `"${v}"`).join(",");
+          })
           .join("\n");
+
+        const timestamp = new Date().toISOString().replace(/:/g, "-");
+        const filename = `Molve_evaluations_${timestamp}.csv`;
 
         res.setHeader("Content-Type", "text/csv");
         res.setHeader(
           "Content-Disposition",
-          'attachment; filename="evaluations.csv"',
+          `attachment; filename="${filename}"`,
         );
         res.send(csvHeader + csvData);
       } catch (error) {
