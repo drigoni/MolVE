@@ -293,9 +293,13 @@ export class DatabaseStorage implements IStorage {
 
     return results.map(result => ({
       evaluationId: result.evaluations.id,
+      moleculeId: result.molecules.id,
       smiles: result.molecules.smiles,
       molecularWeight: result.molecules.molecularWeight,
       logP: result.molecules.logP,
+      hbd: result.molecules.hbd,
+      hba: result.molecules.hba,
+      sas: result.molecules.sas,
       evaluation: result.evaluations.evaluation,
       notes: result.evaluations.notes,
       issueSolubility: result.evaluations.issueSolubility,

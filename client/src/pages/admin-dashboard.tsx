@@ -380,47 +380,69 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDownloadMolecule = async (molecule: Molecule) => {
-    try {
-      const response = await fetch("/api/admin/molecules/download", {
-        method: "GET",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to download molecule");
-      }
-
-      // We already expose a CSV for all molecules; for a single
-      // molecule we reuse its properties and create a small Blob.
-      const header = "ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,Created At\n";
-      const createdAt = molecule.createdAt
-        ? new Date(molecule.createdAt).toISOString()
-        : "";
-      const row = `${molecule.id},"${molecule.smiles}",${molecule.molecularWeight},${molecule.logP},${molecule.hbd},${molecule.hba},${molecule.sas},"${createdAt}"`;
-      const csvContent = header + row;
-
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `molecule_${molecule.id}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
+  const handleDownloadMolecule = (molecule: Molecule) => {
+    if (!molecule.sdf || !molecule.sdf.trim()) {
       toast({
-        title: "Molecule download",
-        description: `CSV for molecule ${molecule.id} downloaded`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Download error",
-        description: error.message || "Could not download molecule",
+        title: "No SDF data",
+        description: "This molecule does not have SDF content stored.",
         variant: "destructive",
       });
+      return;
     }
+
+    const blob = new Blob([molecule.sdf], { type: "chemical/x-mdl-sdfile" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `molecule_${molecule.id}.sdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Molecule download",
+      description: `SDF for molecule ${molecule.id} downloaded`,
+    });
+  };
+
+  const handleDownloadSdfDataset = () => {
+    if (!molecules || molecules.length === 0) {
+      toast({
+        title: "No molecules",
+        description: "There are no molecules to download.",
+      });
+      return;
+    }
+
+    const sdfContent = molecules
+      .map((mol) => mol.sdf || "")
+      .filter((block) => block.trim().length > 0)
+      .join("\n");
+
+    if (!sdfContent.trim()) {
+      toast({
+        title: "No SDF data",
+        description: "Molecules do not have SDF content stored.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const blob = new Blob([sdfContent], { type: "chemical/x-mdl-sdfile" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `molecules_${new Date().toISOString().split("T")[0]}.sdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "SDF download",
+      description: "Molecules SDF dataset downloaded",
+    });
   };
 
   const handleGuestViewingToggle = (checked: boolean) => {
@@ -604,6 +626,15 @@ export default function AdminDashboard() {
                         <Download className="h-4 w-4 mr-2" />
                         Download CSV
                       </Button>
+                      <Button
+                        onClick={handleDownloadSdfDataset}
+                        variant="outline"
+                        size="sm"
+                        className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download SDF
+                      </Button>
                       <Button 
                         onClick={() => deleteAllMolecules.mutate()}
                         disabled={deleteAllMolecules.isPending}
@@ -682,10 +713,9 @@ export default function AdminDashboard() {
                                     onClick={() => handleDownloadMolecule(molecule)}
                                     variant="outline"
                                     size="sm"
-                                    className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
                                   >
                                     <Download className="h-4 w-4 mr-1" />
-                                    Download
                                   </Button>
                                   <Button
                                     onClick={() => deleteMolecule.mutate(molecule.id)}
