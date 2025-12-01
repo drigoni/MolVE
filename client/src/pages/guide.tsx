@@ -213,10 +213,54 @@ const GuidePage: React.FC = () => {
                 <li><strong>Evaluations</strong> – endpoints to create, update, and retrieve evaluation records.</li>
               </ul>
               <p className="mb-4">
-                All endpoints follow a JSON‑based request/response style. For authenticated routes, the server expects either a session cookie (for browser use) or another configured scheme such as a token header (for programmatic access). Error responses include an HTTP status code and a small JSON body describing what went wrong.
+                All endpoints follow a JSON‑based request/response style. For authenticated routes, the server expects either a session cookie (for browser use) or an API token (for programmatic access) sent in the <code>X-API-Token</code> header. Error responses include an HTTP status code and a small JSON body describing what went wrong.
               </p>
+
+              <h3 className="text-xl font-semibold mt-4 mb-2">Roles and access levels</h3>
+              <p className="mb-2">
+                Below is a non‑exhaustive list of important endpoints and who can use them:
+              </p>
+              <ul className="list-disc list-inside mb-4 space-y-1">
+                <li><code>POST /api/v1/molecules</code> – create a single molecule. <strong>Admin API token only</strong>.</li>
+                <li><code>POST /api/v1/molecules/upload-sdf</code> – bulk upload molecules from SDF. <strong>Admin API token only</strong>.</li>
+                <li><code>GET /api/v1/molecules/download-sdf</code> – download all stored molecules as SDF. <strong>Any valid API token</strong>.</li>
+                <li><code>GET /api/v1/molecules/download-csv</code> – download all stored molecules as CSV. <strong>Any valid API token</strong>.</li>
+                <li><code>GET /api/v1/evaluations/download-csv</code> – download the full evaluations dataset (including flags and metadata). <strong>Admin API token only</strong>.</li>
+              </ul>
+
+              <p className="mb-4">
+                For a complete and always‑up‑to‑date list of routes, consult <code>server/routes.ts</code> in the repository. That file shows all paths, required roles, and payload structures.
+              </p>
+
+              <h3 className="text-xl font-semibold mt-4 mb-2">Using the API from Python</h3>
+              <p className="mb-2">
+                Admins can create API tokens in the web UI and then use them with external scripts. The example below shows how to download the molecules dataset as CSV using Python and the <code>requests</code> library:
+              </p>
+              <pre className="bg-gray-100 text-sm p-4 rounded mb-4 overflow-x-auto">
+<code>{`import requests
+
+BASE_URL = "http://localhost:3000"  # adjust to your deployment
+API_TOKEN = "YOUR_API_TOKEN_HERE"   # create this in the MolVE UI
+
+headers = {
+    "X-API-Token": API_TOKEN,
+}
+
+resp = requests.get(
+    f"{BASE_URL}/api/v1/molecules/download-csv",
+    headers=headers,
+    timeout=60,
+)
+
+resp.raise_for_status()  # raise an error if the request failed
+
+with open("molecules_dataset.csv", "wb") as f:
+    f.write(resp.content)
+
+print("Saved CSV with status:", resp.status_code)`}</code>
+              </pre>
               <p>
-                For detailed paths, request shapes, and example payloads, consult the <code>server/</code> folder in the repository, especially the router files in <code>server/routes.ts</code> and related service modules. These files show the authoritative list of routes, parameters, and response structures.
+                You can adapt the same pattern to call other endpoints, for example <code>/api/v1/evaluations/download-csv</code> (admin token required) or <code>/api/v1/molecules</code> to programmatically register new molecules.
               </p>
             </section>
           </TabsContent>
