@@ -663,6 +663,9 @@ export default function AdminDashboard() {
                             Evaluation
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Issues
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Notes
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -684,14 +687,38 @@ export default function AdminDashboard() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                evaluation.evaluation === 'positive' 
+                                evaluation.evaluation === 'prioritize'
                                   ? 'bg-green-100 text-green-800'
-                                  : evaluation.evaluation === 'negative'
+                                  : evaluation.evaluation === 'do_not_prioritize'
                                   ? 'bg-red-100 text-red-800'
                                   : 'bg-yellow-100 text-yellow-800'
                               }`}>
                                 {evaluation.evaluation}
                               </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {(() => {
+                                const issues: string[] = [];
+                                if (evaluation.issueSolubility) issues.push("Solubility");
+                                if (evaluation.issueSyntheticAccessibility) issues.push("Synthetic Accessibility");
+                                if (evaluation.issueDimension) issues.push("Dimension");
+                                if (evaluation.issuePermeability) issues.push("Permeability");
+
+                                return issues.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {issues.map((issue) => (
+                                      <span
+                                        key={issue}
+                                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700"
+                                      >
+                                        {issue}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 text-xs">—</span>
+                                );
+                              })()}
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
                               {evaluation.notes || '—'}

@@ -298,6 +298,10 @@ export class DatabaseStorage implements IStorage {
       logP: result.molecules.logP,
       evaluation: result.evaluations.evaluation,
       notes: result.evaluations.notes,
+      issueSolubility: result.evaluations.issueSolubility,
+      issueSyntheticAccessibility: result.evaluations.issueSyntheticAccessibility,
+      issueDimension: result.evaluations.issueDimension,
+      issuePermeability: result.evaluations.issuePermeability,
       username: result.users.username,
       evaluationDate: result.evaluations.createdAt,
     }));

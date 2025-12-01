@@ -452,11 +452,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Convert to CSV format
         const csvHeader =
-          "SMILES,Molecular Weight,LogP,Evaluation,Notes,Username,Date\n";
+          "SMILES,Molecular Weight,LogP,Evaluation,Notes,Issues,Username,Date\n";
         const csvData = dataset
           .map(
             (row) =>
-              `"${row.smiles}","${row.molecularWeight}","${row.logP}","${row.evaluation}","${row.notes || ""}","${row.username}","${row.evaluationDate}"`,
+              `"${row.smiles}","${row.molecularWeight}","${row.logP}","${row.evaluation}","${row.notes || ""}","${[
+                row.issueSolubility ? "Solubility" : null,
+                row.issueSyntheticAccessibility ? "Synthetic Accessibility" : null,
+                row.issueDimension ? "Dimension" : null,
+                row.issuePermeability ? "Permeability" : null,
+              ]
+                .filter(Boolean)
+                .join(";")}","${row.username}","${row.evaluationDate}"`,
           )
           .join("\n");
 

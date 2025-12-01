@@ -41,6 +41,10 @@ CREATE TABLE public.evaluations (
     molecule_id integer NOT NULL,
     evaluation text NOT NULL,
     notes text,
+    issue_solubility boolean DEFAULT false,
+    issue_synthetic_accessibility boolean DEFAULT false,
+    issue_dimension boolean DEFAULT false,
+    issue_permeability boolean DEFAULT false,
     created_at timestamp without time zone DEFAULT now()
 );
 

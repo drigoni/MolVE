@@ -57,6 +57,10 @@ export const evaluations = pgTable("evaluations", {
   moleculeId: integer("molecule_id").notNull().references(() => molecules.id),
   evaluation: text("evaluation").notNull(), // 'positive', 'negative', 'borderline'
   notes: text("notes"),
+  issueSolubility: boolean("issue_solubility").default(false),
+  issueSyntheticAccessibility: boolean("issue_synthetic_accessibility").default(false),
+  issueDimension: boolean("issue_dimension").default(false),
+  issuePermeability: boolean("issue_permeability").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
