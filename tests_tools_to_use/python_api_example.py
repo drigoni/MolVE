@@ -1,8 +1,8 @@
 import os
 import requests
 
-BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:5173")
-API_TOKEN = os.environ.get("API_TOKEN")
+BASE_URL = "http://localhost:5000"
+API_TOKEN = "MTAtMTc2NDU5MzkyNDA1NC1iY3IwMGd0anQyag"
 
 if not API_TOKEN:
     raise SystemExit("Set API_TOKEN env var to one of your tokens")

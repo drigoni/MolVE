@@ -198,6 +198,21 @@ ALTER SEQUENCE public.users_id_seq OWNER TO postgres;
 
 ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
+--
+-- Create table for API tokens
+--
+
+CREATE TABLE public.api_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    token TEXT NOT NULL,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+-- Add index for faster lookup
+-- CREATE INDEX idx_api_tokens_user_id ON public.api_tokens(user_id);
+ALTER TABLE public.api_tokens OWNER TO postgres;
+
 
 --
 -- Name: evaluations id; Type: DEFAULT; Schema: public; Owner: postgres
