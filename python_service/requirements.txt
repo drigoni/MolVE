@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+rdkit-pypi
+scikit-learn
+torch
+pydantic

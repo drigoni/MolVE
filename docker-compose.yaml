@@ -4,6 +4,7 @@
 
 services:
   app:
+    container_name: molve
     build: 
       context: .
       dockerfile: Dockerfile
@@ -37,8 +38,19 @@ services:
     command: npm run dev:inspect
     # command: ["npm", "run", "dev", "--", "--inspect=0.0.0.0:9229"]
 
-
+  python-service:
+    container_name: molve_python_service
+    build:
+      context: ./python_service
+      dockerfile: Dockerfile
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - app_network
+    restart: unless-stopped
+  
   db:
+    container_name: molve_db
     image: postgres:16-alpine
     environment:
       - POSTGRES_DB=molecular_app
