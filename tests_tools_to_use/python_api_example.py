@@ -108,26 +108,6 @@ $$$$"""
     pretty_print("Created / found molecule", resp.json())
 
 
-def generate_sdf_via_python_service():
-    """Test: POST /api/v1/smiles-to-sdf (requires authenticated user)."""
-
-    payload = {"smiles": "CCO"}
-    resp = requests.post(
-        f"{BASE_URL}/api/v1/smiles-to-sdf",
-        json=payload,
-        headers=headers,
-    )
-    pretty_print(
-        "SMILES to SDF response info",
-        f"status={resp.status_code}, content-type={resp.headers.get('Content-Type')}",
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    sdf = data.get("sdf", "")
-    snippet = sdf[:500] + ("\n... [truncated]" if len(sdf) > 500 else "")
-    pretty_print("Generated SDF from SMILES (snippet)", snippet)
-
-
 def upload_sdf_admin():
     """Test: POST /api/v1/molecules/upload-sdf (admin token required)."""
     # Expect a small test SDF file next to this script, or skip.
@@ -199,6 +179,26 @@ def download_evaluations_csv_admin():
     snippet = text[:1000] + ("\n... [truncated]" if len(text) > 1000 else "")
     pretty_print("Downloaded evaluations CSV (snippet)", snippet)
 
+
+def generate_sdf_via_python_service():
+    """Test: POST /api/v1/smiles-to-sdf (requires authenticated user)."""
+
+    payload = {"smiles": "CCO"}
+    resp = requests.post(
+        f"{BASE_URL}/api/v1/smiles-to-sdf",
+        json=payload,
+        headers=headers,
+    )
+    pretty_print(
+        "SMILES to SDF response info",
+        f"status={resp.status_code}, content-type={resp.headers.get('Content-Type')}",
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    sdf = data.get("sdf", "")
+    snippet = sdf[:500] + ("\n... [truncated]" if len(sdf) > 500 else "")
+    pretty_print("Generated SDF from SMILES (snippet)", snippet)
+    
 
 def main():
     pretty_print("Config", f"BASE_URL={BASE_URL}, token set={bool(API_TOKEN)}")
