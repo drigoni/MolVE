@@ -138,9 +138,12 @@ def sdf_properties(payload: SdfPropertiesRequest) -> SdfPropertiesResponse:
 
     # Compute properties
     mw = float(Descriptors.MolWt(mol))
-    logp = float(Crippen.MolLogP(mol))
-    hbd = int(Lipinski.NumHDonors(mol))
-    hba = int(Lipinski.NumHAcceptors(mol))
+    # logp = float(Crippen.MolLogP(mol))
+    # hbd = int(Lipinski.NumHDonors(mol))
+    # hba = int(Lipinski.NumHAcceptors(mol))
+    logp = float(Descriptors.MolLogP(mol))
+    hbd = int(Descriptors.NumHDonors(mol))
+    hba = int(Descriptors.NumHAcceptors(mol))
     fscore = npscorer.readNPModel()
     npscores = npscorer.scoreMolWConfidence(mol,fscore)
     nps = float(npscores[0])
