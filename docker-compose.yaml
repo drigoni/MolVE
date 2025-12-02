@@ -38,6 +38,7 @@ services:
       - app_network
     restart: unless-stopped
     command: npm run dev:inspect
+    # command: npm run dev
     # command: ["npm", "run", "dev", "--", "--inspect=0.0.0.0:9229"]
 
   python-service:
