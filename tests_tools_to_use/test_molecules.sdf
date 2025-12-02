@@ -41,7 +41,7 @@ CCO
 >  <nps>  (1) 
 0.09255576786746667
 
->  <npsconfidence>  (1) 
+>  <npsConfidence>  (1) 
 0.23076923076923078
 
 $$$$
@@ -113,7 +113,7 @@ CC(=O)OC1=CC=CC=C1C(=O)O
 >  <nps>  (2) 
 0.15022309030064288
 
->  <npsconfidence>  (2) 
+>  <npsConfidence>  (2) 
 0.41935483870967744
 
 $$$$
@@ -242,7 +242,7 @@ CCN(CC)CCCC(C)NC1=C2C=CC=CC2=CC=C1
 >  <nps>  (3) 
 -0.10828013255963674
 
->  <npsconfidence>  (3) 
+>  <npsConfidence>  (3) 
 0.25
 
 $$$$
@@ -300,7 +300,7 @@ O=CC1=CC=CC=C1
 >  <nps>  (4) 
 0.09884152887257143
 
->  <npsconfidence>  (4) 
+>  <npsConfidence>  (4) 
 0.35294117647058826
 
 $$$$

@@ -257,11 +257,9 @@ export class DatabaseStorage implements IStorage {
     const [evalStats] = await db
       .select({
         total: sql<number>`count(*)::int`,
-        positive: sql<number>`count(case when evaluation = 'positive' then 1 end)::int`,
-        negative: sql<number>`count(case when evaluation = 'negative' then 1 end)::int`,
+        prioritize: sql<number>`count(case when evaluation = 'prioritize' then 1 end)::int`,
         borderline: sql<number>`count(case when evaluation = 'borderline' then 1 end)::int`,
-        awesome: sql<number>`count(case when evaluation = 'awesome' then 1 end)::int`,
-        futuristic: sql<number>`count(case when evaluation = 'futuristic' then 1 end)::int`,
+        doNotPrioritize: sql<number>`count(case when evaluation = 'do_not_prioritize' then 1 end)::int`,
       })
       .from(evaluations);
 
@@ -274,11 +272,9 @@ export class DatabaseStorage implements IStorage {
 
     return {
       total: evalStats?.total || 0,
-      positive: evalStats?.positive || 0,
-      negative: evalStats?.negative || 0,
+      prioritize: evalStats?.prioritize || 0,
       borderline: evalStats?.borderline || 0,
-      awesome: evalStats?.awesome || 0,
-      futuristic: evalStats?.futuristic || 0,
+      doNotPrioritize: evalStats?.doNotPrioritize || 0,
       totalUsers: userStats?.totalUsers || 0,
     };
   }
@@ -300,6 +296,8 @@ export class DatabaseStorage implements IStorage {
       hbd: result.molecules.hbd,
       hba: result.molecules.hba,
       sas: result.molecules.sas,
+      nps: (result.molecules as any).nps,
+      npsConfidence: (result.molecules as any).npsConfidence,
       evaluation: result.evaluations.evaluation,
       notes: result.evaluations.notes,
       issueSolubility: result.evaluations.issueSolubility,

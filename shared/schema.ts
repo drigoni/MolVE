@@ -40,12 +40,14 @@ export const users = pgTable("users", {
 // Molecules table
 export const molecules = pgTable("molecules", {
   id: serial("id").primaryKey(),
-  smiles: text("smiles"),
-  molecularWeight: text("molecular_weight"),
-  logP: text("log_p"),
-  hbd: integer("hbd"),
-  hba: integer("hba"),
-  sas: text("sas"),
+  smiles: text("smiles").notNull(),
+  molecularWeight: text("molecular_weight").notNull(),
+  logP: text("log_p").notNull(),
+  hbd: integer("hbd").notNull(),
+  hba: integer("hba").notNull(),
+  sas: text("sas").notNull(),
+  nps: text("nps").notNull(),
+  npsConfidence: text("nps_confidence").notNull(),
   sdf: text("sdf"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -143,10 +145,8 @@ export type EvaluationWithMolecule = Evaluation & {
 // Dashboard stats type
 export type DashboardStats = {
   total: number;
-  positive: number;
-  negative: number;
+  prioritize: number;
   borderline: number;
-  awesome: number;
-  futuristic: number;
+  doNotPrioritize: number;
   totalUsers: number;
 };

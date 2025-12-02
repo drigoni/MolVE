@@ -12,7 +12,9 @@ export interface MolecularProperties {
   logP: number;
   hbd: number;
   hba: number;
-  sas: number; 
+  sas: number;
+  nps: number;
+  npsConfidence: number;
 }
 
 export interface MolecularStructure {

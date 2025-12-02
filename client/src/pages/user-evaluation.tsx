@@ -460,6 +460,22 @@ export default function UserEvaluation() {
                           {currentMolecule?.sas ?? '--'}
                         </Badge>
                       </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-600">
+                          Natural Product Score (NPS)
+                        </p>
+                        <Badge variant="secondary">
+                          {currentMolecule?.nps ?? '--'}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-600">
+                          NPS Confidence
+                        </p>
+                        <Badge variant="secondary">
+                          {currentMolecule?.npsConfidence ?? '--'}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

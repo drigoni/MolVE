@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Beaker, ThumbsUp, ThumbsDown, Minus, Star, Eye, Users } from "lucide-react";
+import { Beaker, ThumbsUp, ThumbsDown, Minus, Users } from "lucide-react";
 import type { DashboardStats } from "@shared/schema";
 
 interface DashboardStatsProps {
@@ -18,15 +18,8 @@ export function DashboardStats({ stats, isLoading }: DashboardStatsProps) {
       bgColor: "bg-scientific-blue/10",
     },
     {
-      title: "Awesome",
-      value: stats?.awesome || 0,
-      icon: Star,
-      color: "text-purple-600",
-      bgColor: "bg-purple-100",
-    },
-    {
-      title: "Good",
-      value: stats?.positive || 0,
+      title: "Prioritize",
+      value: stats?.prioritize || 0,
       icon: ThumbsUp,
       color: "text-mint-green",
       bgColor: "bg-mint-green/10",
@@ -39,18 +32,11 @@ export function DashboardStats({ stats, isLoading }: DashboardStatsProps) {
       bgColor: "bg-scientific-amber/10",
     },
     {
-      title: "Bad",
-      value: stats?.negative || 0,
+      title: "Do Not Prioritize",
+      value: stats?.doNotPrioritize || 0,
       icon: ThumbsDown,
       color: "text-red-600",
       bgColor: "bg-red-100",
-    },
-    {
-      title: "Futuristic",
-      value: stats?.futuristic || 0,
-      icon: Eye,
-      color: "text-cyan-600",
-      bgColor: "bg-cyan-100",
     },
     {
       title: "Total Users",

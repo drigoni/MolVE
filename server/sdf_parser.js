@@ -32,12 +32,14 @@ function parseSdfMolecule(sdfBlock) {
     // Extract molecule name from first line
     const molName = lines[0].trim() || 'Unknown';
     
-    // Extract ONLY these 5 properties from data fields
+    // Extract supported properties from data fields (case-insensitive)
     let molecularWeight = null;
     let logP = null;
     let hbd = null;
     let hba = null;
     let sas = null;
+    let nps = null;
+    let npsConfidence = null;
     let smiles = null;
 
     // Look for property data fields - ignore everything else
@@ -69,6 +71,12 @@ function parseSdfMolecule(sdfBlock) {
             } else if (propertyName === 'sas') {
               const parsed = parseFloat(rawValue);
               if (!isNaN(parsed)) sas = parsed;
+            } else if (propertyName === 'nps') {
+              const parsed = parseFloat(rawValue);
+              if (!isNaN(parsed)) nps = parsed;
+            } else if (propertyName === 'npsconfidence') {
+              const parsed = parseFloat(rawValue);
+              if (!isNaN(parsed)) npsConfidence = parsed;
             } else if (propertyName === 'smiles') {
               smiles = rawValue;
             }
@@ -86,7 +94,9 @@ function parseSdfMolecule(sdfBlock) {
         logP: logP,
         hbd: hbd,
         hba: hba,
-        sas: sas
+        sas: sas,
+        nps: nps,
+        npsConfidence: npsConfidence
       },
       sdf: sdfBlock
     };

@@ -95,17 +95,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const molecules = await storage.getAllMolecules();
 
-        // Create CSV header
+        // Create CSV header (including NPS fields)
         const csvHeader =
-          "ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,Created At\n";
+          "ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,NPS,NPS Confidence,Created At\n";
 
         // Create CSV rows
         const csvRows = molecules
-          .map((mol) => {
+          .map((mol: any) => {
             const createdAt = mol.createdAt
               ? new Date(mol.createdAt).toISOString()
               : "";
-            return `${mol.id},"${mol.smiles}",${mol.molecularWeight},${mol.logP},${mol.hbd},${mol.hba},${mol.sas},"${createdAt}"`;
+            return `${mol.id},"${mol.smiles}",${mol.molecularWeight},${mol.logP},${mol.hbd},${mol.hba},${mol.sas},${mol.nps ?? ""},${mol.npsConfidence ?? ""},"${createdAt}"`;
           })
           .join("\n");
 
@@ -127,7 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   );
 
-  // Download full molecules dataset as SDF
+  // Download molecules dataset as SDF
   app.get(
     "/api/admin/molecules/download-sdf",
     isAuthenticated,
@@ -233,6 +233,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Process each SDF molecule block
             const structure = await processSdfMolecule(cleanBlock);
 
+            // Require NPS properties to be present; skip molecules without them
+            if (
+              structure.properties.nps === undefined ||
+              structure.properties.npsConfidence === undefined
+            ) {
+              console.error(
+                "Skipping molecule without required NPS properties",
+                {
+                  smiles: structure.smiles,
+                  properties: structure.properties,
+                },
+              );
+              skipped++;
+              continue;
+            }
+
             // Check if molecule already exists
             const existing = await storage.getMoleculeBySmiles(
               structure.smiles,
@@ -241,8 +257,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               skipped++;
               continue;
             }
-            console.log(`Inserting molecule with SMILES: ${structure.properties.sas.toString()}`);
-
             const moleculeData = insertMoleculeSchema.parse({
               smiles: structure.smiles,
               molecularWeight: structure.properties.molecularWeight.toString(),
@@ -250,6 +264,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               hbd: structure.properties.hbd,
               hba: structure.properties.hba,
               sas: structure.properties.sas.toString(),
+              nps: structure.properties.nps.toString(),
+              npsConfidence: structure.properties.npsConfidence.toString(),
               sdf: structure.sdf,
             });
 
@@ -442,9 +458,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const dataset = await storage.getEvaluationDataset();
 
-        // CSV header: keep it aligned with the values below (15 columns)
+        // CSV header: keep it aligned with the values below
         const csvHeader =
-          "Molecule ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,Evaluation,Notes,Issue Solubility,Issue Synthetic Accessibility,Issue Dimension,Issue Permeability,Username,Date\n";
+          "Molecule ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,NPS,NPS Confidence,Evaluation,Notes,Issue Solubility,Issue Synthetic Accessibility,Issue Dimension,Issue Permeability,Username,Date\n";
 
         const csvData = dataset
           .map((row) => {
@@ -463,6 +479,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               esc(row.hbd ?? ""),
               esc(row.hba ?? ""),
               esc(row.sas ?? ""),
+              esc(row.nps ?? ""),
+              esc(row.npsConfidence ?? ""),
               esc(row.evaluation),
               esc(row.notes || ""),
               row.issueSolubility ? "1" : "0",
@@ -730,9 +748,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add a molecule via API token (admin-owned tokens only)
   app.post("/api/v1/molecules", authenticateApiToken, requireAdminApiToken, async (req, res) => {
     try {
-      const { smiles, molecularWeight, logP, hbd, hba, sas, sdf } = req.body;
-      if (!smiles) {
-        return res.status(400).json({ message: "smiles is required" });
+      const { smiles, molecularWeight, logP, hbd, hba, sas, nps, npsConfidence, sdf } = req.body;
+      // Enforce required fields, including NPS properties
+      if (
+        !smiles ||
+        molecularWeight === undefined ||
+        logP === undefined ||
+        hbd === undefined ||
+        hba === undefined ||
+        sas === undefined ||
+        nps === undefined ||
+        npsConfidence === undefined
+      ) {
+        return res.status(400).json({ message: "Missing required molecule properties" });
       }
 
       const existing = await storage.getMoleculeBySmiles(smiles);
@@ -742,11 +770,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const molecule = await storage.createMolecule({
         smiles,
-        molecularWeight: molecularWeight ?? null,
-        logP: logP ?? null,
-        hbd: hbd ?? null,
-        hba: hba ?? null,
-        sas: sas ?? null,
+        molecularWeight: String(molecularWeight),
+        logP: String(logP),
+        hbd,
+        hba,
+        sas: String(sas),
+        nps: String(nps),
+        npsConfidence: String(npsConfidence),
         sdf: sdf ?? null,
       } as any);
 
@@ -790,6 +820,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Process each SDF molecule block
             const structure = await processSdfMolecule(cleanBlock);
 
+            // Require NPS properties to be present; skip molecules without them
+            if (
+              structure.properties.nps === undefined ||
+              structure.properties.npsConfidence === undefined
+            ) {
+              console.error(
+                "Skipping molecule without required NPS properties via API",
+                {
+                  smiles: structure.smiles,
+                  properties: structure.properties,
+                },
+              );
+              skipped++;
+              continue;
+            }
+
             // Check if molecule already exists
             const existing = await storage.getMoleculeBySmiles(
               structure.smiles,
@@ -806,6 +852,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               hbd: structure.properties.hbd,
               hba: structure.properties.hba,
               sas: structure.properties.sas.toString(),
+              nps: structure.properties.nps.toString(),
+              npsConfidence: structure.properties.npsConfidence.toString(),
               sdf: structure.sdf,
             });
 
@@ -873,14 +921,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const molecules = await storage.getAllMolecules();
 
       const csvHeader =
-        "ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,Created At\n";
+        "ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,NPS,NPS Confidence,Created At\n";
 
       const csvRows = molecules
         .map((mol) => {
           const createdAt = mol.createdAt
             ? new Date(mol.createdAt).toISOString()
             : "";
-          return `${mol.id},"${mol.smiles}",${mol.molecularWeight},${mol.logP},${mol.hbd},${mol.hba},${mol.sas},"${createdAt}"`;
+          return `${mol.id},"${mol.smiles}",${mol.molecularWeight},${mol.logP},${mol.hbd},${mol.hba},${mol.sas},${mol.nps ?? ""},${mol.npsConfidence ?? ""},"${createdAt}"`;
         })
         .join("\n");
 
@@ -904,7 +952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const dataset = await storage.getEvaluationDataset();
       // CSV header: keep it aligned with the values below (15 columns)
       const csvHeader =
-        "Molecule ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,Evaluation,Notes,Issue Solubility,Issue Synthetic Accessibility,Issue Dimension,Issue Permeability,Username,Date\n";
+        "Molecule ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,NPS,NPS Confidence,Evaluation,Notes,Issue Solubility,Issue Synthetic Accessibility,Issue Dimension,Issue Permeability,Username,Date\n";
 
       const csvData = dataset
         .map((row) => {
@@ -923,6 +971,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             esc(row.hbd ?? ""),
             esc(row.hba ?? ""),
             esc(row.sas ?? ""),
+            esc(row.nps ?? ""),
+            esc(row.npsConfidence ?? ""),
             esc(row.evaluation),
             esc(row.notes || ""),
             row.issueSolubility ? "1" : "0",
