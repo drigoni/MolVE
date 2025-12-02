@@ -198,6 +198,72 @@ def generate_sdf_via_python_service():
     sdf = data.get("sdf", "")
     snippet = sdf[:500] + ("\n... [truncated]" if len(sdf) > 500 else "")
     pretty_print("Generated SDF from SMILES (snippet)", snippet)
+
+
+def compute_properties_from_sdf_via_python_service():
+    """Test: POST /api/v1/sdf-properties (requires admin API token).
+
+    Uses the same example SDF block as in create_single_molecule() and
+    asks the python_service to compute basic molecular properties.
+    """
+
+    example_sdf = '''CHEMBL153534
+     RDKit          2D
+
+ 16 17  0  0  0  0  0  0  0  0999 V2000
+    7.6140  -22.2702    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    5.7047  -23.1991    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    6.1806  -22.5282    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+    6.9604  -22.7690    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    4.8790  -23.2163    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+    8.2791  -21.1119    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+    7.5280  -21.4445    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    8.4225  -22.4364    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    8.8353  -21.7198    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    6.2035  -23.8527    0.0000 S   0  0  0  0  0  0  0  0  0  0  0  0
+    4.0534  -23.2163    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    6.9776  -23.5889    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    3.6406  -22.4938    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+    3.6406  -23.9215    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+    8.4397  -20.3035    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    9.6552  -21.6280    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  2  3  2  0
+  3  4  1  0
+  4  1  1  0
+  5  2  1  0
+  6  7  1  0
+  7  1  2  0
+  8  1  1  0
+  9  8  2  0
+ 10 12  1  0
+ 11  5  2  3
+ 12  4  2  0
+ 13 11  1  0
+ 14 11  1  0
+ 15  6  1  0
+ 16  9  1  0
+  6  9  1  0
+ 10  2  1  0
+M  END
+> <chembl_id>
+CHEMBL153534
+
+$$$$
+'''
+
+    payload = {"sdf": example_sdf}
+    resp = requests.post(
+        f"{BASE_URL}/api/v1/sdf-properties",
+        json=payload,
+        headers=headers,
+    )
+    pretty_print(
+        "SDF properties response info",
+        f"status={resp.status_code}, content-type={resp.headers.get('Content-Type')}",
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    pretty_print("Computed properties from SDF", data)
     
 
 def main():
@@ -235,11 +301,17 @@ def main():
 
 
     ####### testing API python_Service #######
-    # 1b) Call SMILES -> SDF API via Python service (authenticated user)
+    # # 1b) Call SMILES -> SDF API via Python service (authenticated user)
+    # try:
+    #     generate_sdf_via_python_service()
+    # except Exception as exc:
+    #     pretty_print("Error generating SDF via python-service", repr(exc))
+
+    # 2b) Call SDF -> properties API via Python service (admin token)
     try:
-        generate_sdf_via_python_service()
+        compute_properties_from_sdf_via_python_service()
     except Exception as exc:
-        pretty_print("Error generating SDF via python-service", repr(exc))
+        pretty_print("Error computing properties via python-service", repr(exc))
 
 
 if __name__ == "__main__":

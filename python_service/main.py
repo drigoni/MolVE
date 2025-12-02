@@ -1,9 +1,13 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Dict, Any
 
 from rdkit import Chem
-from rdkit.Chem import AllChem
+from rdkit.Chem import AllChem, Descriptors, Crippen, Lipinski
+
+from rdkit.Contrib.SA_Score import sascorer
+from rdkit.Contrib.NP_Score import npscorer
+
 
 
 app = FastAPI(title="Molecular Python Service")
@@ -35,6 +39,20 @@ class MLRequest(BaseModel):
 class MLResponse(BaseModel):
     model_name: str
     output: List[float]
+
+
+class SdfPropertiesRequest(BaseModel):
+    sdf: str
+
+
+class SdfPropertiesResponse(BaseModel):
+    molecularWeight: float
+    logP: float
+    hbd: int
+    hba: int
+    sas: float
+    nps: float
+    npsConfidence: float
 
 
 @app.get("/health")
@@ -91,7 +109,50 @@ def generate_sdf(payload: SdfRequest) -> SdfResponse:
     return SdfResponse(smiles=payload.smiles, sdf=sdf_block)
 
 
-@app.post("/ml", response_model=MLResponse)
-def run_ml_model(payload: MLRequest) -> MLResponse:
-    # TODO: Implement real scikit-learn / PyTorch inference
-    return MLResponse(model_name=payload.model_name, output=payload.features)
+@app.post("/sdf-properties", response_model=SdfPropertiesResponse)
+def sdf_properties(payload: SdfPropertiesRequest) -> SdfPropertiesResponse:
+    """Compute basic properties starting from an SDF block.
+
+    Expects a single-molecule SDF block as text, converts it to an RDKit
+    molecule, and returns:
+
+    - Molecular Weight
+    - LogP
+    - H-bond Donors
+    - H-bond Acceptors
+    - Synthetic Accessibility Score
+    """
+
+    if not payload.sdf or not payload.sdf.strip():
+        raise HTTPException(status_code=400, detail="SDF content is required")
+
+    # Create an in-memory SDMolSupplier from the SDF text
+    suppl = Chem.SDMolSupplier()
+    suppl.SetData(payload.sdf, removeHs=False)
+    if len(suppl) == 0:
+        raise HTTPException(status_code=400, detail="Could not parse SDF block")
+
+    mol = suppl[0]
+    if mol is None:
+        raise HTTPException(status_code=400, detail="Invalid SDF molecule")
+
+    # Compute properties
+    mw = float(Descriptors.MolWt(mol))
+    logp = float(Crippen.MolLogP(mol))
+    hbd = int(Lipinski.NumHDonors(mol))
+    hba = int(Lipinski.NumHAcceptors(mol))
+    fscore = npscorer.readNPModel()
+    npscores = npscorer.scoreMolWConfidence(mol,fscore)
+    nps = float(npscores[0])
+    npsConfidence = float(npscores[1])
+    sas = float(sascorer.calculateScore(mol))
+
+    return SdfPropertiesResponse(
+        molecularWeight=mw,
+        logP=logp,
+        hbd=hbd,
+        hba=hba,
+        sas=sas,
+        nps=nps,
+        npsConfidence=npsConfidence
+    )

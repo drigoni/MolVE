@@ -1070,6 +1070,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // This endpoint accepts an SDF block, forwards it to the python_service
+  // /sdf-properties route, and returns the computed properties.
+  app.post("/api/v1/sdf-properties", authenticateApiToken, requireAdminApiToken, async (req, res) => {
+    try {
+      const { sdf } = req.body ?? {};
+      if (!sdf || typeof sdf !== "string") {
+        return res.status(400).json({ message: "sdf is required" });
+      }
+
+      const pythonUrl = "http://python-service:8000/sdf-properties";
+
+      const response = await fetch(pythonUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sdf }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message = (data as any)?.detail || (data as any)?.message || "Python service error";
+        return res.status(response.status).json({ message });
+      }
+
+      // Expecting shape: { molecularWeight, logP, hbd, hba, sas }
+      return res.json(data);
+    } catch (error) {
+      console.error("Error calling python-service /sdf-properties:", error);
+      return res.status(500).json({ message: "Failed to compute properties via Python service" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
