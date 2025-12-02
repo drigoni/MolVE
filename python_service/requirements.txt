@@ -1,6 +1,8 @@
 fastapi
 uvicorn[standard]
-rdkit-pypi
+rdkit
 scikit-learn
 torch
+torchvision
 pydantic
+--extra-index-url https://download.pytorch.org/whl/cpu

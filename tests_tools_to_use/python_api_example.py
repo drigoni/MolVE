@@ -8,8 +8,8 @@ import requests
 #BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
 #API_TOKEN = os.getenv("API_TOKEN", "")
 
-# API_TOKEN="MTAtMTc2NDYwNTE2NTg0OC05YXkxaW1oaGtmaQ"
-API_TOKEN = "MTEtMTc2NDY4OTk3NTIyNi15Y2xkcWY4aXl1ag"
+API_TOKEN="MTAtMTc2NDYwNTE2NTg0OC05YXkxaW1oaGtmaQ"    # admin
+# API_TOKEN = "MTEtMTc2NDY4OTk3NTIyNi15Y2xkcWY4aXl1ag"    # user
 BASE_URL="http://localhost:5000"
 
 if not API_TOKEN:
@@ -108,6 +108,26 @@ $$$$"""
     pretty_print("Created / found molecule", resp.json())
 
 
+def generate_sdf_via_python_service():
+    """Test: POST /api/v1/smiles-to-sdf (requires authenticated user)."""
+
+    payload = {"smiles": "CCO"}
+    resp = requests.post(
+        f"{BASE_URL}/api/v1/smiles-to-sdf",
+        json=payload,
+        headers=headers,
+    )
+    pretty_print(
+        "SMILES to SDF response info",
+        f"status={resp.status_code}, content-type={resp.headers.get('Content-Type')}",
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    sdf = data.get("sdf", "")
+    snippet = sdf[:500] + ("\n... [truncated]" if len(sdf) > 500 else "")
+    pretty_print("Generated SDF from SMILES (snippet)", snippet)
+
+
 def upload_sdf_admin():
     """Test: POST /api/v1/molecules/upload-sdf (admin token required)."""
     # Expect a small test SDF file next to this script, or skip.
@@ -183,35 +203,43 @@ def download_evaluations_csv_admin():
 def main():
     pretty_print("Config", f"BASE_URL={BASE_URL}, token set={bool(API_TOKEN)}")
 
-    # 1) Create or get a single molecule (admin only)
-    try:
-       create_single_molecule()
-    except Exception as exc:
-       pretty_print("Error creating molecule", repr(exc))
+    # # 1) Create or get a single molecule (admin only)
+    # try:
+    #    create_single_molecule()
+    # except Exception as exc:
+    #    pretty_print("Error creating molecule", repr(exc))
 
-    # 2) Bulk upload molecules from SDF (admin only)
-    try:
-       upload_sdf_admin()
-    except Exception as exc:
-       pretty_print("Error uploading SDF", repr(exc))
+    # # 2) Bulk upload molecules from SDF (admin only)
+    # try:
+    #    upload_sdf_admin()
+    # except Exception as exc:
+    #    pretty_print("Error uploading SDF", repr(exc))
 
-    # 3) Download all molecules as SDF (all API tokens)
-    try:
-        download_molecules_sdf()
-    except Exception as exc:
-        pretty_print("Error downloading SDF dataset", repr(exc))
+    # # 3) Download all molecules as SDF (all API tokens)
+    # try:
+    #     download_molecules_sdf()
+    # except Exception as exc:
+    #     pretty_print("Error downloading SDF dataset", repr(exc))
 
-    # 4) Download all molecules as CSV (all API tokens)
-    try:
-        download_molecules_csv()
-    except Exception as exc:
-        pretty_print("Error downloading CSV dataset", repr(exc))
+    # # 4) Download all molecules as CSV (all API tokens)
+    # try:
+    #     download_molecules_csv()
+    # except Exception as exc:
+    #     pretty_print("Error downloading CSV dataset", repr(exc))
 
-    # 5) Download all evaluations as CSV (admin only)
+    # # 5) Download all evaluations as CSV (admin only)
+    # try:
+    #     download_evaluations_csv_admin()
+    # except Exception as exc:
+    #     pretty_print("Error downloading evaluations CSV", repr(exc))
+
+
+    ####### testing API python_Service #######
+    # 1b) Call SMILES -> SDF API via Python service (authenticated user)
     try:
-        download_evaluations_csv_admin()
+        generate_sdf_via_python_service()
     except Exception as exc:
-        pretty_print("Error downloading evaluations CSV", repr(exc))
+        pretty_print("Error generating SDF via python-service", repr(exc))
 
 
 if __name__ == "__main__":

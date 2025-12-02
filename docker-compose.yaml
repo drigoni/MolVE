@@ -46,6 +46,8 @@ services:
     build:
       context: ./python_service
       dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
     volumes:
       - ./python_service:/app
     environment:

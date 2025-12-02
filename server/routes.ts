@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin, isUser, authenticateApiToken, requireAdminApiToken } from "./auth";
 import { processSdfMolecule } from "./services/molecular";
+import fetch from "node-fetch";
 import { insertMoleculeSchema, insertEvaluationSchema } from "@shared/schema";
 import multer from "multer";
 // Removed CSV parsing - only SDF supported
@@ -67,235 +68,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error revoking API token:", error);
       res.status(500).json({ message: "Failed to revoke API token" });
-    }
-  });
-
-  // Only SDF upload is supported for molecule management
-
-  // --- Public API for programmatic access ---
-
-  // Add a molecule via API token (admin-owned tokens only)
-  app.post("/api/v1/molecules", authenticateApiToken, requireAdminApiToken, async (req, res) => {
-    try {
-      const { smiles, molecularWeight, logP, hbd, hba, sas, sdf } = req.body;
-      if (!smiles) {
-        return res.status(400).json({ message: "smiles is required" });
-      }
-
-      const existing = await storage.getMoleculeBySmiles(smiles);
-      if (existing) {
-        return res.json(existing);
-      }
-
-      const molecule = await storage.createMolecule({
-        smiles,
-        molecularWeight: molecularWeight ?? null,
-        logP: logP ?? null,
-        hbd: hbd ?? null,
-        hba: hba ?? null,
-        sas: sas ?? null,
-        sdf: sdf ?? null,
-      } as any);
-
-      res.status(201).json(molecule);
-    } catch (error) {
-      console.error("Error creating molecule via API:", error);
-      res.status(500).json({ message: "Failed to create molecule" });
-    }
-  });
-
-  // Bulk add molecules from SDF via API token (admin-owned tokens only)
-  app.post(
-    "/api/v1/molecules/upload-sdf",
-    authenticateApiToken,
-    requireAdminApiToken,
-    upload.single("sdf"),
-    async (req, res) => {
-      try {
-        if (!req.file) {
-          return res.status(400).json({ message: "No SDF file uploaded" });
-        }
-
-        const sdfContent = req.file.buffer.toString();
-
-        // Split SDF content into individual molecule blocks
-        const molBlocks = sdfContent
-          .split("$$$$")
-          .filter((block) => block.trim());
-
-        let processed = 0;
-        let skipped = 0;
-        const moleculesData = [];
-
-        for (const molBlock of molBlocks) {
-          if (!molBlock.trim()) continue;
-          const cleanBlock =
-            molBlock.trim() +
-            (molBlock.trim().endsWith("$$$$") ? "" : "\n$$$$");
-
-          try {
-            // Process each SDF molecule block
-            const structure = await processSdfMolecule(cleanBlock);
-
-            // Check if molecule already exists
-            const existing = await storage.getMoleculeBySmiles(
-              structure.smiles,
-            );
-            if (existing) {
-              skipped++;
-              continue;
-            }
-
-            const moleculeData = insertMoleculeSchema.parse({
-              smiles: structure.smiles,
-              molecularWeight: structure.properties.molecularWeight.toString(),
-              logP: structure.properties.logP.toString(),
-              hbd: structure.properties.hbd,
-              hba: structure.properties.hba,
-              sas: structure.properties.sas.toString(),
-              sdf: structure.sdf,
-            });
-
-            moleculesData.push(moleculeData);
-            processed++;
-          } catch (error) {
-            console.error(`Error processing SDF molecule via API:`, error);
-            skipped++;
-          }
-        }
-
-        // Batch insert molecules
-        if (moleculesData.length > 0) {
-          await storage.createMolecules(moleculesData);
-        }
-
-        res.json({
-          message: `Successfully processed ${processed} molecules from SDF via API, skipped ${skipped}`,
-          processed,
-          skipped,
-        });
-      } catch (error) {
-        console.error("Error uploading SDF via API:", error);
-        res.status(500).json({ message: "Failed to upload SDF file via API" });
-      }
-    },
-  );
-
-  // Get molecules dataset as SDF (all API users)
-  app.get("/api/v1/molecules/download-sdf", authenticateApiToken, async (req, res) => {
-    try {
-      const molecules = await storage.getAllMolecules();
-
-      // Build a very simple SDF by concatenating stored SDF blocks when available.
-      const sdfBlocks = molecules
-        .map((mol) => mol.sdf)
-        .filter((sdf) => sdf && sdf.trim().length > 0) as string[];
-
-      if (sdfBlocks.length === 0) {
-        return res.status(404).json({ message: "No SDF data available" });
-      }
-
-      const sdfContent = sdfBlocks
-        .map((block) => {
-          const trimmed = block.trimEnd();
-          return trimmed.endsWith("$$$$") ? trimmed : trimmed + "\n$$$$";
-        })
-        .join("\n");
-
-      res.setHeader("Content-Type", "chemical/x-mdl-sdfile");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="molecules_dataset_${new Date().toISOString().split("T")[0]}.sdf"`,
-      );
-      res.send(sdfContent);
-    } catch (error) {
-      console.error("Error downloading molecules SDF via API:", error);
-      res.status(500).json({ message: "Failed to download molecules SDF dataset" });
-    }
-  });
-
-  // Get molecules dataset as CSV (all API users)
-  app.get("/api/v1/molecules/download-csv", authenticateApiToken, async (req, res) => {
-    try {
-      const molecules = await storage.getAllMolecules();
-
-      const csvHeader =
-        "ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,Created At\n";
-
-      const csvRows = molecules
-        .map((mol) => {
-          const createdAt = mol.createdAt
-            ? new Date(mol.createdAt).toISOString()
-            : "";
-          return `${mol.id},"${mol.smiles}",${mol.molecularWeight},${mol.logP},${mol.hbd},${mol.hba},${mol.sas},"${createdAt}"`;
-        })
-        .join("\n");
-
-      const csvContent = csvHeader + csvRows;
-
-      res.setHeader("Content-Type", "text/csv");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="molecules_dataset_${new Date().toISOString().split("T")[0]}.csv"`,
-      );
-      res.send(csvContent);
-    } catch (error) {
-      console.error("Error downloading molecules CSV via API:", error);
-      res.status(500).json({ message: "Failed to download molecules CSV dataset" });
-    }
-  });
-
-  // Get evaluations dataset as CSV (admin API tokens only)
-  app.get("/api/v1/evaluations/download-csv", authenticateApiToken, requireAdminApiToken, async (req, res) => {
-    try {
-      const dataset = await storage.getEvaluationDataset();
-      // CSV header: keep it aligned with the values below (15 columns)
-      const csvHeader =
-        "Molecule ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,Evaluation,Notes,Issue Solubility,Issue Synthetic Accessibility,Issue Dimension,Issue Permeability,Username,Date\n";
-
-      const csvData = dataset
-        .map((row) => {
-          const date =
-            row.evaluationDate instanceof Date
-              ? row.evaluationDate.toISOString()
-              : row.evaluationDate ?? "";
-
-          const esc = (v: unknown) => String(v ?? "").replace(/"/g, '""');
-
-          const values = [
-            esc(row.moleculeId),
-            esc(row.smiles),
-            esc(row.molecularWeight),
-            esc(row.logP),
-            esc(row.hbd ?? ""),
-            esc(row.hba ?? ""),
-            esc(row.sas ?? ""),
-            esc(row.evaluation),
-            esc(row.notes || ""),
-            row.issueSolubility ? "1" : "0",
-            row.issueSyntheticAccessibility ? "1" : "0",
-            row.issueDimension ? "1" : "0",
-            row.issuePermeability ? "1" : "0",
-            esc(row.username),
-            esc(date),
-          ];
-
-          return values.map((v) => `"${v}"`).join(",");
-        })
-        .join("\n");
-
-      const timestamp = new Date().toISOString().replace(/:/g, "-");
-      const filename = `Molve_evaluations_${timestamp}.csv`;
-
-      res.setHeader("Content-Type", "text/csv");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="${filename}"`,
-      );
-      res.send(csvHeader + csvData);
-    } catch (error) {
-      console.error("Error downloading evaluations CSV via API:", error);
-      res.status(500).json({ message: "Failed to download evaluations CSV" });
     }
   });
 
@@ -1029,6 +801,274 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     },
   );
+
+
+    // Only SDF upload is supported for molecule management
+
+  // --- Public API for programmatic access ---
+
+  // Add a molecule via API token (admin-owned tokens only)
+  app.post("/api/v1/molecules", authenticateApiToken, requireAdminApiToken, async (req, res) => {
+    try {
+      const { smiles, molecularWeight, logP, hbd, hba, sas, sdf } = req.body;
+      if (!smiles) {
+        return res.status(400).json({ message: "smiles is required" });
+      }
+
+      const existing = await storage.getMoleculeBySmiles(smiles);
+      if (existing) {
+        return res.json(existing);
+      }
+
+      const molecule = await storage.createMolecule({
+        smiles,
+        molecularWeight: molecularWeight ?? null,
+        logP: logP ?? null,
+        hbd: hbd ?? null,
+        hba: hba ?? null,
+        sas: sas ?? null,
+        sdf: sdf ?? null,
+      } as any);
+
+      res.status(201).json(molecule);
+    } catch (error) {
+      console.error("Error creating molecule via API:", error);
+      res.status(500).json({ message: "Failed to create molecule" });
+    }
+  });
+
+  // Bulk add molecules from SDF via API token (admin-owned tokens only)
+  app.post(
+    "/api/v1/molecules/upload-sdf",
+    authenticateApiToken,
+    requireAdminApiToken,
+    upload.single("sdf"),
+    async (req, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ message: "No SDF file uploaded" });
+        }
+
+        const sdfContent = req.file.buffer.toString();
+
+        // Split SDF content into individual molecule blocks
+        const molBlocks = sdfContent
+          .split("$$$$")
+          .filter((block) => block.trim());
+
+        let processed = 0;
+        let skipped = 0;
+        const moleculesData = [];
+
+        for (const molBlock of molBlocks) {
+          if (!molBlock.trim()) continue;
+          const cleanBlock =
+            molBlock.trim() +
+            (molBlock.trim().endsWith("$$$$") ? "" : "\n$$$$");
+
+          try {
+            // Process each SDF molecule block
+            const structure = await processSdfMolecule(cleanBlock);
+
+            // Check if molecule already exists
+            const existing = await storage.getMoleculeBySmiles(
+              structure.smiles,
+            );
+            if (existing) {
+              skipped++;
+              continue;
+            }
+
+            const moleculeData = insertMoleculeSchema.parse({
+              smiles: structure.smiles,
+              molecularWeight: structure.properties.molecularWeight.toString(),
+              logP: structure.properties.logP.toString(),
+              hbd: structure.properties.hbd,
+              hba: structure.properties.hba,
+              sas: structure.properties.sas.toString(),
+              sdf: structure.sdf,
+            });
+
+            moleculesData.push(moleculeData);
+            processed++;
+          } catch (error) {
+            console.error(`Error processing SDF molecule via API:`, error);
+            skipped++;
+          }
+        }
+
+        // Batch insert molecules
+        if (moleculesData.length > 0) {
+          await storage.createMolecules(moleculesData);
+        }
+
+        res.json({
+          message: `Successfully processed ${processed} molecules from SDF via API, skipped ${skipped}`,
+          processed,
+          skipped,
+        });
+      } catch (error) {
+        console.error("Error uploading SDF via API:", error);
+        res.status(500).json({ message: "Failed to upload SDF file via API" });
+      }
+    },
+  );
+
+  // Get molecules dataset as SDF (all API users)
+  app.get("/api/v1/molecules/download-sdf", authenticateApiToken, async (req, res) => {
+    try {
+      const molecules = await storage.getAllMolecules();
+
+      // Build a very simple SDF by concatenating stored SDF blocks when available.
+      const sdfBlocks = molecules
+        .map((mol) => mol.sdf)
+        .filter((sdf) => sdf && sdf.trim().length > 0) as string[];
+
+      if (sdfBlocks.length === 0) {
+        return res.status(404).json({ message: "No SDF data available" });
+      }
+
+      const sdfContent = sdfBlocks
+        .map((block) => {
+          const trimmed = block.trimEnd();
+          return trimmed.endsWith("$$$$") ? trimmed : trimmed + "\n$$$$";
+        })
+        .join("\n");
+
+      res.setHeader("Content-Type", "chemical/x-mdl-sdfile");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="molecules_dataset_${new Date().toISOString().split("T")[0]}.sdf"`,
+      );
+      res.send(sdfContent);
+    } catch (error) {
+      console.error("Error downloading molecules SDF via API:", error);
+      res.status(500).json({ message: "Failed to download molecules SDF dataset" });
+    }
+  });
+
+  // Get molecules dataset as CSV (all API users)
+  app.get("/api/v1/molecules/download-csv", authenticateApiToken, async (req, res) => {
+    try {
+      const molecules = await storage.getAllMolecules();
+
+      const csvHeader =
+        "ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,Created At\n";
+
+      const csvRows = molecules
+        .map((mol) => {
+          const createdAt = mol.createdAt
+            ? new Date(mol.createdAt).toISOString()
+            : "";
+          return `${mol.id},"${mol.smiles}",${mol.molecularWeight},${mol.logP},${mol.hbd},${mol.hba},${mol.sas},"${createdAt}"`;
+        })
+        .join("\n");
+
+      const csvContent = csvHeader + csvRows;
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="molecules_dataset_${new Date().toISOString().split("T")[0]}.csv"`,
+      );
+      res.send(csvContent);
+    } catch (error) {
+      console.error("Error downloading molecules CSV via API:", error);
+      res.status(500).json({ message: "Failed to download molecules CSV dataset" });
+    }
+  });
+
+  // Get evaluations dataset as CSV (admin API tokens only)
+  app.get("/api/v1/evaluations/download-csv", authenticateApiToken, requireAdminApiToken, async (req, res) => {
+    try {
+      const dataset = await storage.getEvaluationDataset();
+      // CSV header: keep it aligned with the values below (15 columns)
+      const csvHeader =
+        "Molecule ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,Evaluation,Notes,Issue Solubility,Issue Synthetic Accessibility,Issue Dimension,Issue Permeability,Username,Date\n";
+
+      const csvData = dataset
+        .map((row) => {
+          const date =
+            row.evaluationDate instanceof Date
+              ? row.evaluationDate.toISOString()
+              : row.evaluationDate ?? "";
+
+          const esc = (v: unknown) => String(v ?? "").replace(/"/g, '""');
+
+          const values = [
+            esc(row.moleculeId),
+            esc(row.smiles),
+            esc(row.molecularWeight),
+            esc(row.logP),
+            esc(row.hbd ?? ""),
+            esc(row.hba ?? ""),
+            esc(row.sas ?? ""),
+            esc(row.evaluation),
+            esc(row.notes || ""),
+            row.issueSolubility ? "1" : "0",
+            row.issueSyntheticAccessibility ? "1" : "0",
+            row.issueDimension ? "1" : "0",
+            row.issuePermeability ? "1" : "0",
+            esc(row.username),
+            esc(date),
+          ];
+
+          return values.map((v) => `"${v}"`).join(",");
+        })
+        .join("\n");
+
+      const timestamp = new Date().toISOString().replace(/:/g, "-");
+      const filename = `Molve_evaluations_${timestamp}.csv`;
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      res.send(csvHeader + csvData);
+    } catch (error) {
+      console.error("Error downloading evaluations CSV via API:", error);
+      res.status(500).json({ message: "Failed to download evaluations CSV" });
+    }
+  });
+
+  
+  // --- Python service integration: SMILES -> 3D SDF ---
+
+  // This endpoint is a thin proxy around the python_service FastAPI app.
+  // It accepts a SMILES string, calls the Python /sdf API, and returns
+  // the generated SDF block (with 3D coordinates) to the client.
+  app.post("/api/v1/smiles-to-sdf", authenticateApiToken, requireAdminApiToken, async (req, res) => {
+    try {
+      const { smiles } = req.body ?? {};
+      if (!smiles || typeof smiles !== "string") {
+        return res.status(400).json({ message: "smiles is required" });
+      }
+
+      // The python-service container is on the same Docker network.
+      // FastAPI runs on port 8000 as configured in python_service/Dockerfile.
+      const pythonUrl = "http://python-service:8000/smiles-to-sdf";
+
+      const response = await fetch(pythonUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ smiles }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message = (data as any)?.detail || (data as any)?.message || "Python service error";
+        return res.status(response.status).json({ message });
+      }
+
+      // Expecting shape: { smiles: string, sdf: string }
+      return res.json(data);
+    } catch (error) {
+      console.error("Error calling python-service /smiles-to-sdf:", error);
+      return res.status(500).json({ message: "Failed to generate SDF via Python service" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
