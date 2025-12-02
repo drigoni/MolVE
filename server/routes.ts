@@ -569,93 +569,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin SDF file upload route
-  app.post(
-    "/api/admin/molecules/upload-sdf",
-    isAuthenticated,
-    isAdmin,
-    upload.single("sdf"),
-    async (req, res) => {
-      try {
-        if (!req.file) {
-          return res.status(400).json({ message: "SDF file is required" });
-        }
-
-        const sdfContent = req.file.buffer.toString("utf-8");
-        const moleculesData: any[] = [];
-        let processed = 0;
-        let skipped = 0;
-
-        // Parse SDF content into molecule blocks
-        const moleculeBlocks = sdfContent.split("$$$$");
-
-        for (const block of moleculeBlocks) {
-          if (!block.trim()) continue;
-
-          const lines = block.split("\n");
-          let foundSmiles = null;
-
-          // Look for SMILES in the SDF properties
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (line.includes("SMILES") || line.includes("<SMILES>")) {
-              const nextLine = lines[i + 1]?.trim();
-              if (nextLine && nextLine.length > 0 && !nextLine.includes(">")) {
-                foundSmiles = nextLine;
-                break;
-              }
-            }
-          }
-
-          if (!foundSmiles) {
-            // Try to extract from molecule name or other properties
-            // For now, skip molecules without SMILES
-            skipped++;
-            continue;
-          }
-
-          try {
-            // Check if molecule already exists
-            const existing = await storage.getMoleculeBySmiles(foundSmiles);
-            if (existing) {
-              skipped++;
-              continue;
-            }
-
-            // Generate molecular structure using RDKit
-            const structure = await generateMolecularStructure(foundSmiles);
-            moleculesData.push({
-              smiles: structure.smiles,
-              molecularWeight: structure.properties.molecularWeight.toString(),
-              logP: structure.properties.logP.toString(),
-              hbd: structure.properties.hbd,
-              hba: structure.properties.hba,
-              structure2d: structure.structure2d,
-              structure3d: structure.structure3d,
-              sdf: structure.sdf,
-            });
-            processed++;
-          } catch (error) {
-            console.error(`Error processing SMILES ${foundSmiles}:`, error);
-            skipped++;
-          }
-        }
-
-        if (moleculesData.length > 0) {
-          await storage.createMolecules(moleculesData);
-        }
-
-        res.json({
-          message: `Successfully processed ${processed} molecules from SDF, skipped ${skipped}`,
-          processed,
-          skipped,
-        });
-      } catch (error) {
-        console.error("Error processing SDF:", error);
-        res.status(500).json({ message: "Failed to process SDF file" });
-      }
-    },
-  );
 
   // User routes for molecule evaluation
   app.get(
@@ -775,17 +688,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Dashboard routes (admin only)
-  // User stats endpoint (for regular users)
-  app.get("/api/user/stats", isAuthenticated, async (req: any, res) => {
-    try {
-      const stats = await storage.getDashboardStats();
-      res.json(stats);
-    } catch (error) {
-      console.error("Error fetching user stats:", error);
-      res.status(500).json({ message: "Failed to fetch stats" });
-    }
-  });
 
   app.get(
     "/api/dashboard/stats",
@@ -803,9 +705,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
 
-    // Only SDF upload is supported for molecule management
 
+
+
+
+
+
+
+
+
+
+
+
+
+  // -----------------------------------------------------------------------------
   // --- Public API for programmatic access ---
+  // -----------------------------------------------------------------------------
+  // /api/v1/molecules: Add a molecule via API token (admin-owned tokens only)
+  // /api/v1/molecules/upload-sdf: Bulk add molecules from SDF via API token (admin-owned tokens only)
+  // /api/v1/molecules/download-sdf: Get molecules dataset as SDF (all API users)
+  // /api/v1/molecules/download-csv: Get molecules dataset as CSV (all API users)
+  // /api/v1/evaluations/download-csv: Get evaluations dataset as CSV (admin-owned tokens only)
 
   // Add a molecule via API token (admin-owned tokens only)
   app.post("/api/v1/molecules", authenticateApiToken, requireAdminApiToken, async (req, res) => {
@@ -1032,8 +952,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  
+
+
+
+
+
+
+
+
+
+  // -----------------------------------------------------------------------------
   // --- Python service integration: SMILES -> 3D SDF ---
+  // -----------------------------------------------------------------------------
+  // /api/v1/smiles-to-sdf: It accepts a SMILES string, calls the Python /sdf API, and returns the generated SDF block (with 3D coordinates) to the client.
+  // /api/v1/sdf-properties: It accepts an SDF block, forwards it to the python_service /sdf-properties route, and returns the computed properties.
+
 
   // This endpoint is a thin proxy around the python_service FastAPI app.
   // It accepts a SMILES string, calls the Python /sdf API, and returns

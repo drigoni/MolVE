@@ -316,3 +316,85 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#  code to generate sdf file
+# # Install RDKit in Google Colab
+# !pip install rdkit
+
+# from rdkit import Chem
+# from rdkit.Chem import AllChem
+# from rdkit.Chem import Descriptors
+# import pandas as pd
+# from rdkit.Contrib.SA_Score import sascorer
+# from rdkit.Contrib.NP_Score import npscorer
+
+# # Define the SMILES strings
+# smiles_list = [
+#     "CCO",  # Example: ethanol
+#     "CC(=O)OC1=CC=CC=C1C(=O)O",  # Example: aspirin
+#     "CCN(CC)CCCC(C)NC1=C2C=CC=CC2=CC=C1",  # Example: amitriptyline
+#     "C1=CC=C(C=C1)C=O"  # Example: benzaldehyde
+# ]
+
+# # Create RDKit Mol objects and optimize geometry
+# mols = []
+# smiles_new_list = []
+# for smiles in smiles_list:
+#     mol = Chem.MolFromSmiles(smiles)
+#     if mol is None:
+#         print(f"Invalid SMILES: {smiles}")
+#         continue
+#     mol = Chem.AddHs(mol)
+#     smiles_new_list.append(Chem.MolToSmiles(Chem.MolFromSmiles(smiles), kekuleSmiles=True, canonical=True))
+#     AllChem.EmbedMolecule(mol, randomSeed=42)
+#     AllChem.UFFOptimizeMolecule(mol)
+#     mols.append(mol)
+
+# # Calculate properties and save to SDF
+# sdf_writer = Chem.SDWriter('molecules.sdf')
+
+# for mol, smiles_string in zip(mols, smiles_new_list):
+#     # Calculate properties
+#     if not smiles_string:
+#       continue
+#     mol_weight = Descriptors.MolWt(mol)
+#     logp = Descriptors.MolLogP(mol)
+#     hbd = Descriptors.NumHDonors(mol)
+#     hba = Descriptors.NumHAcceptors(mol)
+#     fscore = npscorer.readNPModel()
+#     npscores = npscorer.scoreMolWConfidence(mol,fscore)
+#     nps = float(npscores[0])
+#     npsConfidence = float(npscores[1])
+#     sas = float(sascorer.calculateScore(mol))
+
+#     # Add properties to molecule
+#     mol.SetProp("MolecularWeight", str(mol_weight))
+#     mol.SetProp("SMILES", smiles_string)
+#     mol.SetProp("LogP", str(logp))
+#     mol.SetProp("hbd", str(hbd))
+#     mol.SetProp("hba", str(hba))
+#     mol.SetProp("sas", str(sas))
+#     mol.SetProp("nps", str(nps))
+#     mol.SetProp("npsConfidence", str(npsConfidence))
+
+
+#     # Write to SDF
+#     sdf_writer.write(mol)
+
+# sdf_writer.close()
+# print("SDF file created: molecules.sdf")
