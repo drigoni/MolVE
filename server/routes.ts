@@ -1085,6 +1085,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // This endpoint accepts a smiles, forwards it to the python_service
+  app.post("/api/v1/predict", authenticateApiToken, requireAdminApiToken, async (req, res) => {
+    try {
+      const { smiles } = req.body ?? {};
+      if (!smiles || typeof smiles !== "string") {
+        return res.status(400).json({ message: "smiles is required" });
+      }
+
+      const pythonUrl = "http://python-service:8000/rf-predict";
+
+      const response = await fetch(pythonUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ smiles }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message = (data as any)?.detail || (data as any)?.message || "Python service error";
+        return res.status(response.status).json({ message });
+      }
+
+      // Expecting shape: { smiles: string, sdf: string }
+      return res.json(data);
+    } catch (error) {
+      console.error("Error calling python-service /rf-predict:", error);
+      return res.status(500).json({ message: "Failed to predict the priority via Python service" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

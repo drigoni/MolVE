@@ -12,7 +12,7 @@ import joblib
 router = APIRouter()
 
 
-MODEL_PATH = Path(__file__).resolve().parent.parent / "random_forest_model.joblib"
+MODEL_PATH = Path(__file__).resolve().parent.parent / "models/best_random_forest_model.joblib"
 
 
 class RFPredictRequest(BaseModel):
@@ -45,6 +45,7 @@ def _smiles_to_fingerprint(smiles: str, radius: int = 2, n_bits: int = 2048) -> 
 
 @router.post("/rf-predict", response_model=RFPredictResponse)
 def rf_predict(payload: RFPredictRequest) -> RFPredictResponse:
+    print(f"Received RF predict request for SMILES: {payload.smiles}", MODEL_PATH)
     model = _load_model()
     features = _smiles_to_fingerprint(payload.smiles)
     try:

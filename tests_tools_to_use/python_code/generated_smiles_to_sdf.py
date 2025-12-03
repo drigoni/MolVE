@@ -53,19 +53,19 @@ for mol, smiles_string in zip(mols, smiles_new_list):
     hbd = Descriptors.NumHDonors(mol)
     hba = Descriptors.NumHAcceptors(mol)
     fscore = npscorer.readNPModel()
-    nps = npscorer.scoreMol(mol, fscore)
-    npsconf = npscorer.scoreMolWConfidence(mol, fscore)
+    npscores = npscorer.scoreMolWConfidence(mol,fscore)
+    nps = float(npscores[0])
+    npsConfidence = float(npscores[1])
     sas = float(sascorer.calculateScore(mol))
 
     # Add properties to molecule
     mol.SetProp("MolecularWeight", str(mol_weight))
-    mol.SetProp("SMILES", smiles_string)
     mol.SetProp("LogP", str(logp))
     mol.SetProp("hbd", str(hbd))
     mol.SetProp("hba", str(hba))
     mol.SetProp("sas", str(sas))
     mol.SetProp("nps", str(nps))
-    mol.SetProp("npsconfidence", str(npsconf))
+    mol.SetProp("npsConfidence", str(npsConfidence))
 
     # Write to SDF
     sdf_writer.write(mol)

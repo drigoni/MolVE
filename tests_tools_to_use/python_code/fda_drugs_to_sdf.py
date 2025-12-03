@@ -14,7 +14,7 @@ supplier = Chem.SDMolSupplier(input_sdf_path)
 output_sdf_path = 'fda_molecules.sdf'
 sdf_writer = Chem.SDWriter(output_sdf_path)
 
-for mol in supplier:
+for mol in tqdm(supplier):
     if mol is None:
         print("Invalid molecule encountered, skipping...")
         continue
@@ -26,8 +26,9 @@ for mol in supplier:
         hbd = Descriptors.NumHDonors(mol)
         hba = Descriptors.NumHAcceptors(mol)
         fscore = npscorer.readNPModel()
-        nps = npscorer.scoreMol(mol, fscore)
-        npsconf = npscorer.scoreMolWConfidence(mol, fscore)
+        npscores = npscorer.scoreMolWConfidence(mol,fscore)
+        nps = float(npscores[0])
+        npsConfidence = float(npscores[1])
         sas = float(sascorer.calculateScore(mol))
 
         # Add properties to molecule
@@ -37,7 +38,7 @@ for mol in supplier:
         mol.SetProp("hba", str(hba))
         mol.SetProp("sas", str(sas))
         mol.SetProp("nps", str(nps))
-        mol.SetProp("npsconfidence", str(npsconf))
+        mol.SetProp("npsConfidence", str(npsConfidence))
 
         # Write to SDF
         sdf_writer.write(mol)
