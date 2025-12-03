@@ -4,9 +4,8 @@
 
 services:
   app:
-    container_name: molve
     build: 
-      context: .
+      context: ./services/app
       dockerfile: Dockerfile
     ports:
       - "5000:5000"
@@ -23,12 +22,12 @@ services:
       - VIRTUAL_ENV=/venv
       - PATH=/venv/bin:/usr/local/bin:/usr/bin:/bin
     volumes:
-      - ./backup:/app/backup
-      - ./client:/app/client
-      - ./initial_configs:/app/initial_configs
-      - ./server:/app/server
-      - ./shared:/app/shared
-      - ./tests_tools_to_use:/app/tests_tools_to_use
+      - ./services/app/backup:/app/backup
+      - ./services/app/client:/app/client
+      - ./services/app/initial_configs:/app/initial_configs
+      - ./services/app/server:/app/server
+      - ./services/app/shared:/app/shared
+      - ./services/app/tests_tools_to_use:/app/tests_tools_to_use
     depends_on:
       db:
         condition: service_healthy
@@ -42,14 +41,13 @@ services:
     # command: ["npm", "run", "dev", "--", "--inspect=0.0.0.0:9229"]
 
   python-service:
-    container_name: molve_python_service
     build:
-      context: ./python_service
+      context: ./services/python-service
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
     volumes:
-      - ./python_service:/app
+      - ./services/python-service:/app
     environment:
       - PYTHONUNBUFFERED=1
     networks:
@@ -57,7 +55,6 @@ services:
     restart: unless-stopped
   
   db:
-    container_name: molve_db
     image: postgres:16-alpine
     environment:
       - POSTGRES_DB=molecular_app
@@ -66,8 +63,8 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./docker_storages/postgres:/var/lib/postgresql/data
-      - ./initial_configs/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./services/db/docker_storages/postgres:/var/lib/postgresql/data
+      - ./services/db/init/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d molecular_app"]
       interval: 10s

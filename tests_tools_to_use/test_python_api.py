@@ -8,7 +8,7 @@ import requests
 #BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
 #API_TOKEN = os.getenv("API_TOKEN", "")
 
-API_TOKEN="MTAtMTc2NDc4NDkzMjk2My1pZjlrbzFqbW83bA"    # admin
+API_TOKEN="MTAtMTc2NDc5NjI3Mzk3NS1uOHEweXV2eWdw"    # admin
 # API_TOKEN = "MTEtMTc2NDY4OTk3NTIyNi15Y2xkcWY4aXl1ag"    # user
 BASE_URL="http://localhost:5000"
 
