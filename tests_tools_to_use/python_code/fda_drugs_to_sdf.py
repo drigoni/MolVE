@@ -63,7 +63,7 @@ def main(input_sdf_path, output_sdf_path, use_multiprocessing):
     Uses multiprocessing if specified. Handles reading, processing, and writing molecules.
     """
     supplier = Chem.SDMolSupplier(input_sdf_path)
-    # supplier = [mol for mol in supplier if mol is not None][:50]
+    total_molecules = len(supplier)
     if use_multiprocessing:
         with Pool(cpu_count()) as pool:
             results = list(tqdm(pool.imap(process_molecule, supplier), total=len(supplier)))
@@ -73,6 +73,7 @@ def main(input_sdf_path, output_sdf_path, use_multiprocessing):
             results.append(process_molecule(mol))
 
     sdf_writer = Chem.SDWriter(output_sdf_path)
+    written_molecules = 0
     for item in results:
         if item is not None:
             molblock, properties = item
@@ -81,8 +82,10 @@ def main(input_sdf_path, output_sdf_path, use_multiprocessing):
                 for k, v in properties.items():
                     mol.SetProp(k, v)
                 sdf_writer.write(mol)
+                written_molecules += 1
     sdf_writer.close()
     print(f"SDF file created: {output_sdf_path}")
+    print(f"Molecules written: {written_molecules} / {total_molecules}")
 
 if __name__ == "__main__":
     """

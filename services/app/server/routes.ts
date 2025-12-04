@@ -4,11 +4,11 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin, isUser, authenticateApiToken, requireAdminApiToken } from "./auth";
 import { processSdfMolecule } from "./services/molecular";
 import fetch from "node-fetch";
-import { insertMoleculeSchema, insertEvaluationSchema, evaluations } from "@shared/schema";
+import { insertMoleculeSchema, insertEvaluationSchema } from "@shared/schema";
 import multer from "multer";
 // Removed CSV parsing - only SDF supported
 import bcrypt from "bcrypt";
-import { db } from "./db";
+// db is used only in storage; routes should rely on storage abstraction
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -199,10 +199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const [items, total] = await Promise.all([
           storage.getAllEvaluations(safeLimit, offset),
-          db
-            .select({ count: sql<number>`count(*)::int` })
-            .from(evaluations)
-            .then((rows) => rows[0]?.count ?? 0),
+          storage.getDashboardStats().then((s) => s.total),
         ]);
 
         res.json({
@@ -263,7 +260,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const cleanBlock =
             molBlock.trim() +
             (molBlock.trim().endsWith("$$$$") ? "" : "\n$$$$");
-          console.error(`Processing molecule block:`, cleanBlock);
 
           try {
             // Process each SDF molecule block

@@ -245,7 +245,11 @@ export class DatabaseStorage implements IStorage {
 
   async getAllEvaluations(limit?: number, offset?: number): Promise<EvaluationWithMolecule[]> {
     let query = db
-      .select()
+      .select({
+        evaluations,
+        molecules,
+        users,
+      })
       .from(evaluations)
       .innerJoin(molecules, eq(evaluations.moleculeId, molecules.id))
       .innerJoin(users, eq(evaluations.userId, users.id))

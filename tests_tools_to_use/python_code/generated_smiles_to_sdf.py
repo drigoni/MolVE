@@ -17,18 +17,29 @@ def process_smiles(smiles):
     Returns a tuple (molblock, properties) or None if processing fails.
     """
     try:
-        mol = Chem.MolFromSmiles(smiles, sanitize=True)
+        mol = Chem.MolFromSmiles(smiles, sanitize=False)
         if mol is None:
             return None
-        smiles_new = Chem.MolToSmiles(mol, canonical=True)
+        
+        Chem.SanitizeMol(mol)
         mol = Chem.AddHs(mol)
+        if mol is None:
+            return None
+        
+        mol_to_smile = Chem.RemoveHs(mol, implicitOnly=True)
+        smiles_new = Chem.MolToSmiles(mol_to_smile, canonical=True, allHsExplicit=False)
         if not smiles_new:
             return None
+        
+        
         # Attempt 3D coordinate generation
         if AllChem.EmbedMolecule(mol, randomSeed=42) != 0:
+            print("Embedding failed for SMILES:", smiles)
             return None
+        
         # Attempt UFF optimization
         if AllChem.UFFOptimizeMolecule(mol) != 0:
+            print("UFF Optimization failed for SMILES:", smiles)
             return None
 
         mol_weight = Descriptors.MolWt(mol)
@@ -65,7 +76,8 @@ def main(input_csv_path, output_sdf_path, use_multiprocessing):
     """
     df = pd.read_csv(input_csv_path)
     smiles_list = df['New SMILES'].dropna().tolist()
-    # smiles_list = smiles_list[:50]  # Limit for testing, remove or adjust as needed
+    total_smiles = len(smiles_list)
+    smiles_list = smiles_list[:500]  # Limit for testing, remove or adjust as needed
     if use_multiprocessing:
         with Pool(cpu_count()) as pool:
             results = list(tqdm(pool.imap(process_smiles, smiles_list), total=len(smiles_list)))
@@ -75,6 +87,7 @@ def main(input_csv_path, output_sdf_path, use_multiprocessing):
             results.append(process_smiles(smiles))
 
     sdf_writer = Chem.SDWriter(output_sdf_path)
+    written_molecules = 0
     for item in results:
         if item is not None:
             molblock, properties = item
@@ -83,8 +96,10 @@ def main(input_csv_path, output_sdf_path, use_multiprocessing):
                 for k, v in properties.items():
                     mol.SetProp(k, v)
                 sdf_writer.write(mol)
+                written_molecules += 1
     sdf_writer.close()
     print(f"SDF file created: {output_sdf_path}")
+    print(f"Molecules written: {written_molecules} / {total_smiles}")
 
 if __name__ == "__main__":
     """

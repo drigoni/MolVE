@@ -658,7 +658,7 @@ export default function AdminDashboard() {
               <Card>
                 <CardHeader>
                   <div className="flex justify-between items-center">
-                    <CardTitle>Molecules Database ({molecules?.length || 0})</CardTitle>
+                    <CardTitle>Molecules Database</CardTitle>
                     <div className="flex gap-2">
                       <Button 
                         onClick={handleDownloadDataset}
