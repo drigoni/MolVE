@@ -450,16 +450,36 @@ export default function AdminDashboard() {
     updateSettings.mutate(checked);
   };
 
+
+  // Refetch relevant queries when tab changes or on initial mount
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== 'admin') return;
+    switch (currentTab) {
+      case "overview":
+        refetchStats();
+        break;
+      case "molecules":
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/molecules"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/molecules/stats"] });
+        break;
+      case "evaluations":
+        refetchEvaluations();
+        refetchStats();
+        break;
+      case "users":
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+        break;
+      case "settings":
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
+        break;
+      default:
+        break;
+    }
+  }, [currentTab, isAuthenticated, user, queryClient, refetchStats, refetchEvaluations]);
+
   const handleTabChange = (value: string) => {
     setCurrentTab(value);
-    
-    // Refetch data when switching to specific tabs
-    if (value === "evaluations") {
-      refetchEvaluations();
-      refetchStats();
-    } else if (value === "overview") {
-      refetchStats();
-    }
+    // Data will be refetched by useEffect above
   };
 
   const handleChangePassword = () => {

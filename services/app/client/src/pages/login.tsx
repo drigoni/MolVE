@@ -7,12 +7,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Atom } from "lucide-react";
+import { useLocation } from "wouter";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const loginMutation = useMutation({
     mutationFn: async ({ username, password }: { username: string; password: string }) => {
@@ -26,8 +28,8 @@ export default function Login() {
       });
       // Invalidate auth queries to refresh user state
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      // Redirect based on user role
-      window.location.href = user.role === 'admin' ? '/admin-dashboard' : '/evaluate';
+      // Redirect based on user role using client-side routing
+      setLocation(user.role === 'admin' ? '/admin-dashboard' : '/evaluate');
     },
     onError: (error: any) => {
       toast({
