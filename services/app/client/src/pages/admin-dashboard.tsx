@@ -70,15 +70,38 @@ export default function AdminDashboard() {
     }
   }, [settings]);
 
-  const { data: molecules, isLoading: moleculesLoading } = useQuery<Molecule[]>({
-    queryKey: ["/api/admin/molecules"],
+  const [moleculesPage, setMoleculesPage] = useState(1);
+  const [evaluationsPage, setEvaluationsPage] = useState(1);
+
+  type PaginatedResponse<T> = {
+    items: T[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
+
+  const { data: moleculesPageData, isLoading: moleculesLoading } = useQuery<PaginatedResponse<Molecule>>({
+    queryKey: ["/api/admin/molecules", moleculesPage],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/admin/molecules?page=${moleculesPage}&limit=20`);
+      return res.json();
+    },
     enabled: isAuthenticated && user?.role === 'admin',
   });
 
-  const { data: evaluations, isLoading: evaluationsLoading, refetch: refetchEvaluations } = useQuery<EvaluationWithMolecule[]>({
-    queryKey: ["/api/admin/evaluations"],
+  const molecules = moleculesPageData?.items ?? [];
+
+  const { data: evaluationsPageData, isLoading: evaluationsLoading, refetch: refetchEvaluations } = useQuery<PaginatedResponse<EvaluationWithMolecule>>({
+    queryKey: ["/api/admin/evaluations", evaluationsPage],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/admin/evaluations?page=${evaluationsPage}&limit=20`);
+      return res.json();
+    },
     enabled: isAuthenticated && user?.role === 'admin',
   });
+
+  const evaluations = evaluationsPageData?.items ?? [];
 
   const { data: moleculeStats, isLoading: moleculeStatsLoading } = useQuery<any[]>({
     queryKey: ["/api/admin/molecules/stats"],
@@ -673,8 +696,9 @@ export default function AdminDashboard() {
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-scientific-blue"></div>
                     </div>
                   ) : molecules && molecules.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                           <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -764,6 +788,37 @@ export default function AdminDashboard() {
                         </tbody>
                       </table>
                     </div>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm text-gray-600">
+                        Page {moleculesPageData?.page ?? 1} of {moleculesPageData?.totalPages ?? 1} (Total: {moleculesPageData?.total ?? 0})
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setMoleculesPage((p) => Math.max(1, p - 1))}
+                          disabled={(moleculesPageData?.page ?? 1) <= 1 || moleculesLoading}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (!moleculesPageData) return;
+                            setMoleculesPage((p) => Math.min(moleculesPageData.totalPages, p + 1));
+                          }}
+                          disabled={
+                            moleculesLoading ||
+                            !moleculesPageData ||
+                            (moleculesPageData?.page ?? 1) >= (moleculesPageData?.totalPages ?? 1)
+                          }
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                    </>
                   ) : (
                     <p className="text-center text-gray-500 py-8">No molecules in database</p>
                   )}
@@ -789,6 +844,7 @@ export default function AdminDashboard() {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-scientific-blue"></div>
                   </div>
                 ) : evaluations && evaluations.length > 0 ? (
+                  <>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
@@ -882,6 +938,37 @@ export default function AdminDashboard() {
                       </tbody>
                     </table>
                   </div>
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-gray-600">
+                      Page {evaluationsPageData?.page ?? 1} of {evaluationsPageData?.totalPages ?? 1} (Total: {evaluationsPageData?.total ?? 0})
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEvaluationsPage((p) => Math.max(1, p - 1))}
+                        disabled={(evaluationsPageData?.page ?? 1) <= 1 || evaluationsLoading}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (!evaluationsPageData) return;
+                          setEvaluationsPage((p) => Math.min(evaluationsPageData.totalPages, p + 1));
+                        }}
+                        disabled={
+                          evaluationsLoading ||
+                          !evaluationsPageData ||
+                          (evaluationsPageData?.page ?? 1) >= (evaluationsPageData?.totalPages ?? 1)
+                        }
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                  </>
                 ) : (
                   <p className="text-center text-gray-500 py-8">No evaluations yet</p>
                 )}

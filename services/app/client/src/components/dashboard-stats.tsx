@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Beaker, ThumbsUp, ThumbsDown, Minus, Users } from "lucide-react";
+import { Beaker, ThumbsUp, ThumbsDown, Minus, Users, FlaskConical } from "lucide-react";
 import type { DashboardStats } from "@shared/schema";
 
 interface DashboardStatsProps {
@@ -10,6 +10,13 @@ interface DashboardStatsProps {
 
 export function DashboardStats({ stats, isLoading }: DashboardStatsProps) {
   const statItems = [
+    {
+      title: "Total Molecules",
+      value: stats?.totalMolecules || 0,
+      icon: FlaskConical,
+      color: "text-purple-600",
+      bgColor: "bg-purple-100",
+    },
     {
       title: "Total Evaluated",
       value: stats?.total || 0,
@@ -48,7 +55,7 @@ export function DashboardStats({ stats, isLoading }: DashboardStatsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
       {statItems.map((item) => {
         const Icon = item.icon;
         

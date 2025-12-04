@@ -35,7 +35,7 @@ export interface IStorage {
   getMoleculeBySmiles(smiles: string): Promise<Molecule | undefined>;
   createMolecule(molecule: InsertMolecule): Promise<Molecule>;
   createMolecules(molecules: InsertMolecule[]): Promise<Molecule[]>;
-  getAllMolecules(): Promise<Molecule[]>;
+  getAllMolecules(limit?: number, offset?: number): Promise<Molecule[]>;
   getRandomMolecule(mode?: 'all' | 'unevaluated'): Promise<Molecule | undefined>;
   deleteMolecule(id: number): Promise<void>;
   deleteAllMolecules(): Promise<void>;
@@ -44,7 +44,7 @@ export interface IStorage {
   // Evaluation operations
   createEvaluation(evaluation: InsertEvaluation): Promise<Evaluation>;
   getUserEvaluations(userId: number, limit?: number): Promise<EvaluationWithMolecule[]>;
-  getAllEvaluations(): Promise<EvaluationWithMolecule[]>;
+  getAllEvaluations(limit?: number, offset?: number): Promise<EvaluationWithMolecule[]>;
   deleteEvaluation(id: number): Promise<void>;
   getDashboardStats(): Promise<DashboardStats>;
   getEvaluationDataset(): Promise<any[]>;
@@ -142,8 +142,18 @@ export class DatabaseStorage implements IStorage {
       .returning();
   }
 
-  async getAllMolecules(): Promise<Molecule[]> {
-    return await db.select().from(molecules).orderBy(molecules.id);
+  async getAllMolecules(limit?: number, offset?: number): Promise<Molecule[]> {
+    let query = db.select().from(molecules).orderBy(molecules.id);
+
+    if (typeof limit === 'number') {
+      query = query.limit(limit);
+    }
+
+    if (typeof offset === 'number') {
+      query = query.offset(offset);
+    }
+
+    return await query;
   }
 
   async getRandomMolecule(mode: 'all' | 'unevaluated' = 'all'): Promise<Molecule | undefined> {
@@ -233,13 +243,23 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getAllEvaluations(): Promise<EvaluationWithMolecule[]> {
-    const results = await db
+  async getAllEvaluations(limit?: number, offset?: number): Promise<EvaluationWithMolecule[]> {
+    let query = db
       .select()
       .from(evaluations)
       .innerJoin(molecules, eq(evaluations.moleculeId, molecules.id))
       .innerJoin(users, eq(evaluations.userId, users.id))
       .orderBy(desc(evaluations.createdAt));
+
+    if (typeof limit === 'number') {
+      query = query.limit(limit);
+    }
+
+    if (typeof offset === 'number') {
+      query = query.offset(offset);
+    }
+
+    const results = await query;
 
     return results.map(result => ({
       ...result.evaluations,
@@ -270,12 +290,20 @@ export class DatabaseStorage implements IStorage {
       })
       .from(users);
 
+    // Get total molecules count
+    const [moleculeStats] = await db
+      .select({
+        totalMolecules: sql<number>`count(*)::int`,
+      })
+      .from(molecules);
+
     return {
       total: evalStats?.total || 0,
       prioritize: evalStats?.prioritize || 0,
       borderline: evalStats?.borderline || 0,
       doNotPrioritize: evalStats?.doNotPrioritize || 0,
       totalUsers: userStats?.totalUsers || 0,
+      totalMolecules: moleculeStats?.totalMolecules || 0,
     };
   }
 

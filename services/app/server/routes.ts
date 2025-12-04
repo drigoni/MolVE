@@ -4,10 +4,11 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin, isUser, authenticateApiToken, requireAdminApiToken } from "./auth";
 import { processSdfMolecule } from "./services/molecular";
 import fetch from "node-fetch";
-import { insertMoleculeSchema, insertEvaluationSchema } from "@shared/schema";
+import { insertMoleculeSchema, insertEvaluationSchema, evaluations } from "@shared/schema";
 import multer from "multer";
 // Removed CSV parsing - only SDF supported
 import bcrypt from "bcrypt";
+import { db } from "./db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -77,8 +78,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     isAdmin,
     async (req, res) => {
       try {
-        const molecules = await storage.getAllMolecules();
-        res.json(molecules);
+        const page = parseInt((req.query.page as string) ?? "1");
+        const limit = parseInt((req.query.limit as string) ?? "50");
+        const safePage = Number.isNaN(page) || page < 1 ? 1 : page;
+        const safeLimit = Number.isNaN(limit) || limit < 1 ? 50 : Math.min(limit, 200);
+        const offset = (safePage - 1) * safeLimit;
+
+        const [items, total] = await Promise.all([
+          storage.getAllMolecules(safeLimit, offset),
+          storage.getDashboardStats().then((s) => s.totalMolecules),
+        ]);
+
+        res.json({
+          items,
+          total,
+          page: safePage,
+          pageSize: safeLimit,
+          totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+        });
       } catch (error) {
         console.error("Error fetching molecules:", error);
         res.status(500).json({ message: "Failed to fetch molecules" });
@@ -174,8 +191,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     isAdmin,
     async (req, res) => {
       try {
-        const evaluations = await storage.getAllEvaluations();
-        res.json(evaluations);
+        const page = parseInt((req.query.page as string) ?? "1");
+        const limit = parseInt((req.query.limit as string) ?? "50");
+        const safePage = Number.isNaN(page) || page < 1 ? 1 : page;
+        const safeLimit = Number.isNaN(limit) || limit < 1 ? 50 : Math.min(limit, 200);
+        const offset = (safePage - 1) * safeLimit;
+
+        const [items, total] = await Promise.all([
+          storage.getAllEvaluations(safeLimit, offset),
+          db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(evaluations)
+            .then((rows) => rows[0]?.count ?? 0),
+        ]);
+
+        res.json({
+          items,
+          total,
+          page: safePage,
+          pageSize: safeLimit,
+          totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+        });
       } catch (error) {
         console.error("Error fetching evaluations:", error);
         res.status(500).json({ message: "Failed to fetch evaluations" });

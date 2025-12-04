@@ -149,4 +149,5 @@ export type DashboardStats = {
   borderline: number;
   doNotPrioritize: number;
   totalUsers: number;
+  totalMolecules: number;
 };
