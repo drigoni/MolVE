@@ -10,6 +10,37 @@ from multiprocessing import Pool, cpu_count
 import argparse
 
 
+
+def embed_and_optimize(mol):
+    """Embed a molecule in 3D and optimize its geometry.
+
+    Uses ETKDG (v3 when available) for conformer generation and then
+    optimizes with MMFF if parameters are available, otherwise UFF.
+    Returns True on success, False on failure.
+    """
+
+    if hasattr(AllChem, "ETKDGv3"):
+        params = AllChem.ETKDGv3()
+    else:
+        params = AllChem.ETKDG()
+
+    params.randomSeed = -1
+    params.numThreads = 0
+    # params.maxAttempts = 50  # non-existent parameter in some RDKit versions
+
+    cid = AllChem.EmbedMolecule(mol, params)
+    if cid < 0:
+        return False
+
+    if AllChem.MMFFHasAllMoleculeParams(mol):
+        res = AllChem.MMFFOptimizeMolecule(mol, confId=cid, maxIters=200)
+    else:
+        res = AllChem.UFFOptimizeMolecule(mol, confId=cid, maxIters=200)
+
+    # Non-zero means not fully converged, but geometry is usually still usable
+    return True
+
+
 def process_smiles(smiles):
     """
     Convert a SMILES string to an RDKit molecule, generate 3D coordinates, optimize geometry,
@@ -30,24 +61,19 @@ def process_smiles(smiles):
         smiles_new = Chem.MolToSmiles(mol_to_smile, canonical=True, allHsExplicit=False)
         if not smiles_new:
             return None
-        
-        
-        # Attempt 3D coordinate generation
-        if AllChem.EmbedMolecule(mol, randomSeed=42) != 0:
-            print("Embedding failed for SMILES:", smiles)
+
+        # Attempt 3D coordinate generation and geometry optimization
+        if not embed_and_optimize(mol):
+            print("3D generation failed for SMILES:", smiles)
             return None
-        
-        # Attempt UFF optimization
-        if AllChem.UFFOptimizeMolecule(mol) != 0:
-            print("UFF Optimization failed for SMILES:", smiles)
-            return None
+
 
         mol_weight = Descriptors.MolWt(mol)
         logp = Descriptors.MolLogP(mol)
         hbd = Descriptors.NumHDonors(mol)
         hba = Descriptors.NumHAcceptors(mol)
-        fscore = npscorer.readNPModel()
-        npscores = npscorer.scoreMolWConfidence(mol, fscore)
+        _np_model = npscorer.readNPModel()
+        npscores = npscorer.scoreMolWConfidence(mol, _np_model)
         nps = float(npscores[0])
         npsConfidence = float(npscores[1])
         sas = float(sascorer.calculateScore(mol))
@@ -67,6 +93,7 @@ def process_smiles(smiles):
         molblock = Chem.MolToMolBlock(mol)
         return (molblock, properties)
     except Exception as e:
+        print(f"Error processing SMILES {smiles}: {e}")
         return None
 
 def main(input_csv_path, output_sdf_path, use_multiprocessing):
@@ -77,7 +104,7 @@ def main(input_csv_path, output_sdf_path, use_multiprocessing):
     df = pd.read_csv(input_csv_path)
     smiles_list = df['New SMILES'].dropna().tolist()
     total_smiles = len(smiles_list)
-    smiles_list = smiles_list[:500]  # Limit for testing, remove or adjust as needed
+    # smiles_list = smiles_list[:500]  # Limit for testing, remove or adjust as needed
     if use_multiprocessing:
         with Pool(cpu_count()) as pool:
             results = list(tqdm(pool.imap(process_smiles, smiles_list), total=len(smiles_list)))
