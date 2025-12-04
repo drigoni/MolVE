@@ -262,8 +262,10 @@ export default function GuestViewer() {
                     <h4 className="text-sm font-medium mb-2">
                       Canonical SMILES
                     </h4>
-                    <code className={`bg-gray-100 px-3 py-2 rounded-md text-sm font-mono block ${fetchRandomMolecule.isPending ? 'opacity-50' : ''}`}>
-                      {currentMolecule?.smiles || 'Loading...'}
+                    <code
+                      className={`bg-gray-100 px-3 py-2 rounded-md text-sm font-mono block break-words whitespace-pre-wrap ${fetchRandomMolecule.isPending ? "opacity-50" : ""}`}
+                    >
+                      {currentMolecule?.smiles || "Loading..."}
                     </code>
                   </div>
 

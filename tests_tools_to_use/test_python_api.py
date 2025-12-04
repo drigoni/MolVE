@@ -8,7 +8,7 @@ import requests
 #BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
 #API_TOKEN = os.getenv("API_TOKEN", "")
 
-API_TOKEN="MTAtMTc2NDc5NjI3Mzk3NS1uOHEweXV2eWdw"    # admin
+API_TOKEN="MTAtMTc2NDg0ODk2NjU0Ny03dGpmNWpuYTFqaQ"    # admin
 # API_TOKEN = "MTEtMTc2NDY4OTk3NTIyNi15Y2xkcWY4aXl1ag"    # user
 BASE_URL="http://localhost:5000"
 
@@ -288,11 +288,11 @@ def test_rf_predict():
 def main():
     pretty_print("Config", f"BASE_URL={BASE_URL}, token set={bool(API_TOKEN)}")
 
-    # # 1) Create or get a single molecule (admin only)
-    # try:
-    #    create_single_molecule()
-    # except Exception as exc:
-    #    pretty_print("Error creating molecule", repr(exc))
+    # 1) Create or get a single molecule (admin only)
+    try:
+       create_single_molecule()
+    except Exception as exc:
+       pretty_print("Error creating molecule", repr(exc))
 
     # # 2) Bulk upload molecules from SDF (admin only)
     # try:
@@ -300,37 +300,37 @@ def main():
     # except Exception as exc:
     #    pretty_print("Error uploading SDF", repr(exc))
 
-    # # 3) Download all molecules as SDF (all API tokens)
-    # try:
-    #     download_molecules_sdf()
-    # except Exception as exc:
-    #     pretty_print("Error downloading SDF dataset", repr(exc))
+    # 3) Download all molecules as SDF (all API tokens)
+    try:
+        download_molecules_sdf()
+    except Exception as exc:
+        pretty_print("Error downloading SDF dataset", repr(exc))
 
-    # # 4) Download all molecules as CSV (all API tokens)
-    # try:
-    #     download_molecules_csv()
-    # except Exception as exc:
-    #     pretty_print("Error downloading CSV dataset", repr(exc))
+    # 4) Download all molecules as CSV (all API tokens)
+    try:
+        download_molecules_csv()
+    except Exception as exc:
+        pretty_print("Error downloading CSV dataset", repr(exc))
 
-    # # 5) Download all evaluations as CSV (admin only)
-    # try:
-    #     download_evaluations_csv_admin()
-    # except Exception as exc:
-    #     pretty_print("Error downloading evaluations CSV", repr(exc))
+    # 5) Download all evaluations as CSV (admin only)
+    try:
+        download_evaluations_csv_admin()
+    except Exception as exc:
+        pretty_print("Error downloading evaluations CSV", repr(exc))
 
 
-    ####### testing API python_Service #######
-    # # 1b) Call SMILES -> SDF API via Python service (authenticated user)
-    # try:
-    #     generate_sdf_via_python_service()
-    # except Exception as exc:
-    #     pretty_print("Error generating SDF via python-service", repr(exc))
+    ###### testing API python_Service #######
+    # 1b) Call SMILES -> SDF API via Python service (authenticated user)
+    try:
+        generate_sdf_via_python_service()
+    except Exception as exc:
+        pretty_print("Error generating SDF via python-service", repr(exc))
 
-    # 2b) Call SDF -> properties API via Python service (admin token)
-    # try:
-    #     compute_properties_from_sdf_via_python_service()
-    # except Exception as exc:
-    #     pretty_print("Error computing properties via python-service", repr(exc))
+    #2b) Call SDF -> properties API via Python service (admin token)
+    try:
+        compute_properties_from_sdf_via_python_service()
+    except Exception as exc:
+        pretty_print("Error computing properties via python-service", repr(exc))
 
 
     try:
