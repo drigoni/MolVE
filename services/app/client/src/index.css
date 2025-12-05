@@ -90,6 +90,10 @@
   .text-deep-magenta {
     color: var(--deep-magenta);
   }
+
+  .code {
+    @apply inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-mono text-gray-800;
+  }
   
   .bg-deep-magenta {
     background-color: var(--deep-magenta);
@@ -125,5 +129,10 @@
   
   .font-roboto {
     font-family: 'Roboto', sans-serif;
+  }
+
+  /* Compact, readable text block for long-form guides/tutorials */
+  .guide-prose {
+    @apply max-w-4xl mx-auto leading-relaxed text-[15px];
   }
 }
