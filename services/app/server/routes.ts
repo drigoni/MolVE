@@ -4,12 +4,13 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin, isUser, authenticateApiToken, requireAdminApiToken } from "./auth";
 import { processSdfMolecule } from "./services/molecular";
 import fetch from "node-fetch";
-import { insertMoleculeSchema, insertEvaluationSchema } from "@shared/schema";
+import { insertMoleculeSchema, insertEvaluationSchema, molecules } from "@shared/schema";
 import { enqueueMlPrediction } from "./mlPredictionQueue";
 import multer from "multer";
 // Removed CSV parsing - only SDF supported
 import bcrypt from "bcrypt";
-// db is used only in storage; routes should rely on storage abstraction
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -267,13 +268,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Process each SDF molecule block
             const structure = await processSdfMolecule(cleanBlock);
 
-            // Require NPS properties to be present; skip molecules without them
+            // Require all key properties and SMILES to be present; skip molecules without them
             if (
+              !structure.smiles ||
+              structure.properties.molecularWeight === undefined ||
+              structure.properties.logP === undefined ||
+              structure.properties.hbd === undefined ||
+              structure.properties.hba === undefined ||
+              structure.properties.sas === undefined ||
               structure.properties.nps === undefined ||
               structure.properties.npsConfidence === undefined
             ) {
               console.error(
-                "Skipping molecule without required NPS properties",
+                "Skipping molecule without all required properties",
                 {
                   smiles: structure.smiles,
                   properties: structure.properties,
@@ -283,14 +290,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
               continue;
             }
 
-            // Check if molecule already exists
+            // Check if molecule already exists by SMILES
             const existing = await storage.getMoleculeBySmiles(
               structure.smiles,
             );
+
+            // If molecule exists and label matches (or both undefined/empty), skip
             if (existing) {
-              skipped++;
+              const existingLabel = existing.label ?? undefined;
+              const newLabel = label ?? undefined;
+
+              if (
+                (!existingLabel && !newLabel) ||
+                (existingLabel && newLabel && existingLabel === newLabel)
+              ) {
+                skipped++;
+                continue;
+              }
+
+              // Molecule exists but label differs: update existing label by appending new label (if not already present)
+              const labels = existingLabel
+                ? existingLabel.split(";").map((l) => l.trim()).filter((l) => l.length > 0)
+                : [];
+
+              if (newLabel && !labels.includes(newLabel)) {
+                labels.push(newLabel);
+              }
+
+              const updatedLabel = labels.join(";");
+
+              // Update the existing molecule's label using a direct DB update
+              await db
+                .update(molecules)
+                .set({ label: updatedLabel })
+                .where(eq(molecules.id, existing.id));
+
+              processed++;
               continue;
             }
+
+            // Molecule does not exist: insert as new
             const moleculeData = insertMoleculeSchema.parse({
               smiles: structure.smiles,
               molecularWeight: structure.properties.molecularWeight.toString(),

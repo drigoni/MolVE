@@ -362,14 +362,48 @@ const GuidePage: React.FC = () => {
                 </li>
                 <li>
                   Use the SDF upload control to select an SDF file containing
-                  molecules with the required NPS properties.
+                  molecules with the required physicochemical properties
+                  (molecular weight, logP, HBD/HBA, SAS, NPS and NPS
+                  confidence). Molecules that are missing any of these fields or
+                  a valid SMILES will be skipped.
                 </li>
                 <li>
                   MolVE will send the file to
                   {" "}
                   <code>/api/admin/molecules/upload-sdf</code>, which parses the
-                  file, calls the Python/RDKit service, and stores new molecules
-                  in PostgreSQL.
+                  file, calls the Python/RDKit service, and stores molecules in
+                  PostgreSQL.
+                </li>
+                <li>
+                  If a molecule has a new SMILES (not yet in the database), it
+                  is inserted with the label you provided in the upload form.
+                  If a molecule has a SMILES that already exists:
+                  <ul className="list-disc list-inside ml-6 mt-1 space-y-1 text-sm text-gray-700">
+                    <li>
+                      If the existing label is the same as the new label (or
+                      both are empty), the molecule is skipped.
+                    </li>
+                    <li>
+                      If the existing label is non‑empty and the new label is
+                      empty, the molecule is treated as already present and the
+                      label is left unchanged (no new dataset tag is added).
+                    </li>
+                    <li>
+                      If the existing label is empty and the new label is
+                      non‑empty, the new label becomes the label for that
+                      molecule (effectively tagging a previously unlabelled
+                      structure).
+                    </li>
+                    <li>
+                      If the existing label is non‑empty and different from the
+                      new non‑empty label, the new label is appended to the
+                      existing one, separated by
+                      {" "}
+                      <code>;</code>
+                      (e.g. <code>"SetA;SetB"</code>), so you can track that the
+                      same structure appears in multiple datasets.
+                    </li>
+                  </ul>
                 </li>
                 <li>
                   Once complete, a toast will report how many molecules were
