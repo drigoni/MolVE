@@ -20,15 +20,14 @@ const GuidePage: React.FC = () => {
         </div>
 
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="introduction">Overview</TabsTrigger>
             <TabsTrigger value="roles">User types</TabsTrigger>
             <TabsTrigger value="api">API & routes</TabsTrigger>
             <TabsTrigger value="admin-workflow">Admin guide</TabsTrigger>
             <TabsTrigger value="evaluator-workflow">Evaluator guide</TabsTrigger>
             <TabsTrigger value="features">Features</TabsTrigger>
-            <TabsTrigger value="structure">Structure</TabsTrigger>
-            <TabsTrigger value="implementation">Implementation</TabsTrigger>
+            <TabsTrigger value="architecture">Architecture & deployment</TabsTrigger>
           </TabsList>
 
           {/* OVERVIEW */}
@@ -36,27 +35,31 @@ const GuidePage: React.FC = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold">Overview of the project</h2>
               <p>
-                MolVE (Molecular Visual Evaluation) is a web-based platform for
-                the manual evaluation of AI‑generated molecules. It is designed
-                for teams who generate large molecular libraries and need experts
-                to visually inspect and score candidates.
-              </p>
-              <p>
-                The system combines an admin interface for configuring studies and
-                managing data with an evaluator interface tailored to fast but
-                careful inspection of molecules in both 2D and 3D. Evaluations are
-                stored in a PostgreSQL database and can be exported for downstream
-                analysis (e.g. benchmarking models or training scoring functions).
+                Advances in artificial intelligence and deep generative models have 
+                enabled the rapid generation of novel molecular structures for advanced 
+                material science and drug discovery. However, the effective evaluation of 
+                these candidates still depends, in the end, on expert judgment, which is 
+                often fragmented and difficult to scale. MolVE is an open-source, web-based 
+                platform designed to support collaborative, expert-driven assessment of 
+                AI-generated molecules. The platform combines secure user authentication, 
+                dataset management,  Machine Learning (MLG) and Deep Learning (DL) models, 
+                interactive 2D/3D visualizations,  and exposes APIs to interact with it directly 
+                from each coding language, e.g., Python. It enables chemists and pharmacologists 
+                to curate, annotate, and evaluate molecules efficiently. 
+                A descriptive rating scale captures qualitative feedback, facilitating clear 
+                communication and consensus among experts. 
               </p>
               <p>
                 MolVE is implemented as a full‑stack TypeScript application with a
                 Node.js/Express backend, a React/Vite frontend, a PostgreSQL
                 database, and an optional Python microservice (RDKit‑based) for
                 molecular processing. Everything is containerised with Docker so it
-                can be deployed reproducibly on a laptop, lab server, or cloud
-                instance.
+                can be deployed reproducibly on a laptop, lab server, or cloud instance.
+                This setup enables scalable deployment in both academic and industrial settings. 
+                By incorporating detailed human evaluation into molecular generation, 
+                MolVE addresses a significant challenge in AI-driven molecule discovery. 
               </p>
-              <p className="mt-2">If you are new to MolVE:</p>
+              <p className="mt-2">If you are new to MolVE, in this guide you will find:</p>
               <ul className="list-disc list-inside space-y-1">
                 <li>Read <strong>User types</strong> to understand admin vs evaluator.</li>
                 <li>Follow the <strong>Admin guide</strong> to set up a study.</li>
@@ -646,25 +649,40 @@ const GuidePage: React.FC = () => {
             </section>
           </TabsContent>
 
-          <TabsContent value="structure">
+          <TabsContent value="architecture">
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">Project structure</h2>
-              <p>The repository is organised into several main directories:</p>
+              <h2 className="text-2xl font-semibold">Architecture, project structure & deployment</h2>
+              <p>
+                MolVE is organised as a small monorepo with three main services running in Docker:
+                a TypeScript web app (React + Express), a PostgreSQL database, and a Python/RDKit
+                microservice. Development and production setups are defined in
+                {" "}
+                <code>docker-compose.yaml</code>
+                {" "}
+                and
+                {" "}
+                <code>docker-compose.prod.yaml</code>
+                .
+              </p>
+              <h3 className="text-xl font-semibold">Repository layout</h3>
+              <p>The main folders you will interact with are:</p>
               <ul className="list-disc list-inside space-y-1">
                 <li>
-                  <strong>client/src/</strong> – frontend React application,
+                  <strong>services/app/client/src/</strong> – React frontend,
                   including pages (e.g. <code>login</code>,
                   {" "}
-                  <code>user-evaluation</code>, <code>admin-dashboard</code>,
-                  <code>guide</code>), components, hooks, and UI utilities.
+                  <code>dashboard</code>, <code>user-evaluation</code>,
+                  <code>admin-dashboard</code>, <code>guest-viewer</code>,
+                  <code>user-api-tokens</code>, <code>guide</code>), shared UI
+                  components, hooks, and utilities.
                 </li>
                 <li>
-                  <strong>client/</strong> – static assets and third‑party
-                  libraries, including ChemDoodle and JSmol distributions and
-                  example HTML files.
+                  <strong>services/app/client/public/</strong> – static assets
+                  and third‑party libraries, including ChemDoodle and JSmol
+                  distributions and example HTML files.
                 </li>
                 <li>
-                  <strong>server/</strong> – Node.js/Express backend:
+                  <strong>services/app/server/</strong> – Node.js/Express backend:
                   <ul className="list-disc list-inside ml-6 mt-1 space-y-1">
                     <li>
                       <code>auth.ts</code> – session setup, login/logout,
@@ -684,44 +702,37 @@ const GuidePage: React.FC = () => {
                   </ul>
                 </li>
                 <li>
-                  <strong>shared/</strong> – shared TypeScript schemas and types
-                  used by both frontend and backend (e.g.
+                  <strong>services/app/shared/</strong> – shared TypeScript schemas and types
+                  used by both frontend and backend (imported as
                   {" "}
                   <code>@shared/schema</code>).
                 </li>
                 <li>
-                  <strong>python_service/</strong> – FastAPI‑based RDKit service
-                  with routes for health checks, SMILES→SDF, SDF property
-                  extraction, and random‑forest predictions.
+                  <strong>services/python-service/</strong> – FastAPI‑based
+                  RDKit service with routes for health checks, SMILES→SDF, SDF
+                  property extraction, and random‑forest predictions.
                 </li>
                 <li>
-                  <strong>docker_storages/</strong> – Docker volumes (e.g.
-                  PostgreSQL data directory) for persistence.
+                  <strong>services/db/</strong> – Postgres volume
+                  configuration and init SQL (mounted inside the DB container
+                  as <code>/var/lib/postgresql/data</code> and
+                  {" "}
+                  <code>/docker-entrypoint-initdb.d</code>).
                 </li>
                 <li>
-                  <strong>initial_configs/</strong> and <strong>backup/</strong>
+                  <strong>backup/</strong> and
+                  {" "}
+                  <strong>services/app/initial_configs/</strong>
                   {" "}
                   – SQL initialisation scripts, CSV seeds, and historical
-                  configuration files.
+                  configuration files used for seeding and experiments.
                 </li>
                 <li>
                   <strong>tests_tools_to_use/</strong> – helper files and
                   examples used for testing or development.
                 </li>
               </ul>
-            </section>
-          </TabsContent>
-
-          <TabsContent value="implementation">
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">Implementation & containers</h2>
-              <p>
-                MolVE is implemented as a full‑stack web application with clearly
-                separated frontend, backend, database, and molecular processing
-                layers, all orchestrated by Docker.
-              </p>
-
-              <h3 className="text-xl font-semibold mt-2">Technology stack</h3>
+              <h3 className="text-xl font-semibold mt-4">Technology stack</h3>
               <ul className="list-disc list-inside space-y-1">
                 <li>
                   <strong>Frontend</strong> – React + TypeScript + Vite, styled
@@ -751,10 +762,29 @@ const GuidePage: React.FC = () => {
 
               <h3 className="text-xl font-semibold mt-4">Containers and interactions</h3>
               <p>
-                A typical Docker deployment (see <code>Dockerfile</code> and
-                {" "}
-                <code>python_service/Dockerfile</code>) runs the following
-                logical services:
+                Both development and production deployments are defined via
+                Docker Compose:
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                <li>
+                  <code>docker-compose.yaml</code> – development setup. Binds
+                  source folders into the <code>app</code> container, exposes
+                  the Node dev server on <code>5000</code>, the Node inspector
+                  on <code>9229</code>, the Python service on
+                  {" "}
+                  <code>8000</code>, and Postgres on
+                  {" "}
+                  <code>5432</code>. Hot‑reload is available via Vite.
+                </li>
+                <li>
+                  <code>docker-compose.prod.yaml</code> – production setup.
+                  Builds the same images but runs the Node app with
+                  <code>npm run start</code> and does not bind‑mount source or
+                  expose internal service ports to the host.
+                </li>
+              </ul>
+              <p className="mt-2">
+                The following logical services are defined in both compose files:
               </p>
               <ul className="list-disc list-inside space-y-1">
                 <li>
@@ -788,12 +818,14 @@ const GuidePage: React.FC = () => {
                     </li>
                     <li>
                       Uses a Docker volume from <code>docker_storages/</code> for
-                      persistent storage.
+                      persistent storage (see <code>services/db/docker_storages/postgres</code>).
                     </li>
                     <li>
-                      Can be initialised with SQL scripts from
+                      Is initialised with SQL scripts from
                       {" "}
-                      <code>initial_configs/</code>.
+                      <code>services/db/init/init-db.sql</code> (and, for
+                      experiments, CSVs in the <code>initial_configs</code>
+                      folders).
                     </li>
                   </ul>
                 </li>
@@ -801,11 +833,15 @@ const GuidePage: React.FC = () => {
                   <strong>Python service container</strong> (FastAPI + RDKit):
                   <ul className="list-disc list-inside ml-6 mt-1 space-y-1">
                     <li>
-                      Built from <code>python_service/Dockerfile</code> with
-                      dependencies from <code>python_service/requirements.txt</code>.
+                      Built from <code>services/python-service/Dockerfile</code>
+                      with dependencies from
+                      {" "}
+                      <code>services/python-service/requirements.txt</code>.
                     </li>
                     <li>
-                      Exposes routes from <code>python_service/routes/</code> such
+                      Exposes routes from
+                      {" "}
+                      <code>services/python-service/routes/</code> such
                       as <code>/health</code>, <code>/smiles-to-sdf</code>,
                       <code>/sdf-properties</code>, and
                       {" "}
@@ -820,9 +856,7 @@ const GuidePage: React.FC = () => {
                 </li>
               </ul>
 
-              <p>
-                The overall data flow is:
-              </p>
+              <p className="mt-4">The overall data flow is:</p>
               <ol className="list-decimal list-inside space-y-1">
                 <li>
                   A user interacts with the React frontend in their browser
