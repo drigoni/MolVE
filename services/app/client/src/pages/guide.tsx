@@ -286,6 +286,59 @@ const GuidePage: React.FC = () => {
                 </li>
               </ul>
 
+              <h3 className="text-xl font-semibold mt-4">Programmatic API (versioned)</h3>
+              <p className="text-sm text-gray-700">
+                These endpoints are intended for programmatic access using API tokens
+                (see <code>tests_tools_to_use/test_python_api.py</code> for examples
+                using <code>requests</code>). All of them require an
+                <code>Authorization: Bearer &lt;token&gt;</code> header; some are
+                restricted to tokens owned by admin users.
+              </p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>
+                  <code>POST /api/v1/molecules</code> – create or fetch a molecule
+                  by SMILES. Requires an <strong>admin‑owned</strong> token. Body
+                  includes SMILES, basic properties (molecular weight, logP,
+                  HBD/HBA, SAS), optional SDF, and the NPS fields
+                  (<code>nps</code>, <code>npsConfidence</code>).
+                </li>
+                <li>
+                  <code>POST /api/v1/molecules/upload-sdf</code> – bulk‑import
+                  molecules from an SDF file (<code>multipart/form-data</code>
+                  field <code>sdf</code>). Requires an admin‑owned token.
+                </li>
+                <li>
+                  <code>GET /api/v1/molecules/download-sdf</code> – download the
+                  stored molecules as an SDF dataset. Any valid token.
+                </li>
+                <li>
+                  <code>GET /api/v1/molecules/download-csv</code> – download the
+                  stored molecules as CSV. Any valid token.
+                </li>
+                <li>
+                  <code>GET /api/v1/evaluations/download-csv</code> – download the
+                  evaluations dataset as CSV. Admin‑owned tokens only.
+                </li>
+                <li>
+                  <code>POST /api/v1/smiles-to-sdf</code> – proxy to the Python
+                  service to generate a 3D SDF from a SMILES string.
+                </li>
+                <li>
+                  <code>POST /api/v1/sdf-properties</code> – proxy to the Python
+                  service to compute molecular properties from an SDF block.
+                </li>
+                <li>
+                  <code>POST /api/v1/predict</code> – proxy to the Python
+                  <code>/rf-predict</code> endpoint to obtain a random‑forest
+                  priority score for a SMILES.
+                </li>
+                <li>
+                  <code>POST /api/predict</code> – stable alias that forwards to
+                  <code>/api/v1/predict</code>; useful if the versioned path
+                  changes in the future.
+                </li>
+              </ul>
+
               <p className="mt-4">
                 The authoritative source of truth for available routes is
                 {" "}

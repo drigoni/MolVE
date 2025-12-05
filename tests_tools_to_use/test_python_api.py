@@ -8,7 +8,7 @@ import requests
 #BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
 #API_TOKEN = os.getenv("API_TOKEN", "")
 
-API_TOKEN="MTAtMTc2NDg0ODk2NjU0Ny03dGpmNWpuYTFqaQ"    # admin
+API_TOKEN="MTAtMTc2NDkzOTQyOTg0Ny11bXgzMnVmajEy"    # admin
 # API_TOKEN = "MTEtMTc2NDY4OTk3NTIyNi15Y2xkcWY4aXl1ag"    # user
 BASE_URL="http://localhost:5000"
 
@@ -101,9 +101,15 @@ $$$$"""
         "hbd": 1,
         "hba": 1,
         "sas": "2.5",
+        # Provide minimal valid NPS fields required by the API
+        "nps": "0.1",
+        "npsConfidence": "0.9",
         "sdf": example_sdf,
+        "label": "test",
     }
-    resp = requests.post(f"{BASE_URL}/api/v1/molecules", json=payload, headers=headers)
+    url = f"{BASE_URL}/api/v1/molecules"
+    pretty_print("Calling API", f"POST {url}")
+    resp = requests.post(url, json=payload, headers=headers)
     resp.raise_for_status()
     pretty_print("Created / found molecule", resp.json())
 
@@ -119,22 +125,18 @@ def upload_sdf_admin():
 
     with sdf_path.open("rb") as f:
         files = {"sdf": (sdf_path.name, f, "chemical/x-mdl-sdfile")}
-        resp = requests.post(
-            f"{BASE_URL}/api/v1/molecules/upload-sdf",
-            headers=headers,
-            files=files,
-        )
+        url = f"{BASE_URL}/api/v1/molecules/upload-sdf"
+        pretty_print("Calling API", f"POST {url} (multipart SDF upload)")
+        resp = requests.post(url, headers=headers, files=files)
     resp.raise_for_status()
     pretty_print("Upload SDF result", resp.json())
 
 
 def download_molecules_sdf():
     """Test: GET /api/v1/molecules/download-sdf (any API token)."""
-    resp = requests.get(
-        f"{BASE_URL}/api/v1/molecules/download-sdf",
-        headers=headers,
-        allow_redirects=False,
-    )
+    url = f"{BASE_URL}/api/v1/molecules/download-sdf"
+    pretty_print("Calling API", f"GET {url}")
+    resp = requests.get(url, headers=headers, allow_redirects=False)
     pretty_print(
         "Molecules SDF response info",
         f"status={resp.status_code}, content-type={resp.headers.get('Content-Type')}, location={resp.headers.get('Location')}",
@@ -148,11 +150,9 @@ def download_molecules_sdf():
 
 def download_molecules_csv():
     """Test: GET /api/v1/molecules/download-csv (any API token)."""
-    resp = requests.get(
-        f"{BASE_URL}/api/v1/molecules/download-csv",
-        headers=headers,
-        allow_redirects=False,
-    )
+    url = f"{BASE_URL}/api/v1/molecules/download-csv"
+    pretty_print("Calling API", f"GET {url}")
+    resp = requests.get(url, headers=headers, allow_redirects=False)
     pretty_print(
         "Molecules CSV response info",
         f"status={resp.status_code}, content-type={resp.headers.get('Content-Type')}, location={resp.headers.get('Location')}",
@@ -165,11 +165,9 @@ def download_molecules_csv():
 
 def download_evaluations_csv_admin():
     """Test: GET /api/v1/evaluations/download-csv (admin token required)."""
-    resp = requests.get(
-        f"{BASE_URL}/api/v1/evaluations/download-csv",
-        headers=headers,
-        allow_redirects=False,
-    )
+    url = f"{BASE_URL}/api/v1/evaluations/download-csv"
+    pretty_print("Calling API", f"GET {url}")
+    resp = requests.get(url, headers=headers, allow_redirects=False)
     pretty_print(
         "Evaluations CSV response info",
         f"status={resp.status_code}, content-type={resp.headers.get('Content-Type')}, location={resp.headers.get('Location')}",
@@ -184,11 +182,9 @@ def generate_sdf_via_python_service():
     """Test: POST /api/v1/smiles-to-sdf (requires authenticated user)."""
 
     payload = {"smiles": "CCO"}
-    resp = requests.post(
-        f"{BASE_URL}/api/v1/smiles-to-sdf",
-        json=payload,
-        headers=headers,
-    )
+    url = f"{BASE_URL}/api/v1/smiles-to-sdf"
+    pretty_print("Calling API", f"POST {url}")
+    resp = requests.post(url, json=payload, headers=headers)
     pretty_print(
         "SMILES to SDF response info",
         f"status={resp.status_code}, content-type={resp.headers.get('Content-Type')}",
@@ -252,11 +248,9 @@ $$$$
 '''
 
     payload = {"sdf": example_sdf}
-    resp = requests.post(
-        f"{BASE_URL}/api/v1/sdf-properties",
-        json=payload,
-        headers=headers,
-    )
+    url = f"{BASE_URL}/api/v1/sdf-properties"
+    pretty_print("Calling API", f"POST {url}")
+    resp = requests.post(url, json=payload, headers=headers)
     pretty_print(
         "SDF properties response info",
         f"status={resp.status_code}, content-type={resp.headers.get('Content-Type')}",
@@ -274,14 +268,28 @@ def test_rf_predict():
     #    json=payload,
     #    headers=headers,
     #)
-    resp = requests.post(
-        f"{BASE_URL}/api/v1/predict",
-        json=payload,
-        headers=headers,
-    )
+    url = f"{BASE_URL}/api/v1/predict"
+    pretty_print("Calling API", f"POST {url}")
+    resp = requests.post(url, json=payload, headers=headers)
     resp.raise_for_status()
     data = resp.json()
     pretty_print("Random Forest prediction result", data)
+
+
+def test_predict_alias():
+    """Test: POST /api/predict (alias to /api/v1/predict)."""
+    payload = {"smiles": "CCO"}  # Ethanol example
+    #resp = requests.post(
+    #    f"http://localhost:8000/rf-predict",
+    #    json=payload,
+    #    headers=headers,
+    #)
+    url = f"{BASE_URL}/api/predict"
+    pretty_print("Calling API", f"POST {url}")
+    resp = requests.post(url, json=payload, headers=headers)
+    resp.raise_for_status()
+    data = resp.json()
+    pretty_print("Prediction result", data)
 
 
 
@@ -337,6 +345,13 @@ def main():
         test_rf_predict()
     except Exception as exc:
         pretty_print("Error calling RF Predict API", repr(exc))
+
+
+    # 3b) Call stable alias prediction endpoint
+    try:
+        test_predict_alias()
+    except Exception as exc:
+        pretty_print("Error calling alias /api/predict", repr(exc))
 
 
 if __name__ == "__main__":

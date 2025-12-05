@@ -234,7 +234,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   );
 
-  // SDF upload endpoint for molecules
+  // Shared implementation for processing an uploaded SDF file and updating/creating molecules.
+  async function handleSdfUpload(
+    sdfContent: string,
+    label: string | undefined,
+    options: { source: "admin" | "api" },
+  ): Promise<{ processed: number; skipped: number }> {
+    const molBlocks = sdfContent
+      .split("$$$$")
+      .filter((block) => block.trim());
+
+    let processed = 0;
+    let skipped = 0;
+    const moleculesData: any[] = [];
+
+    for (const molBlock of molBlocks) {
+      if (!molBlock.trim()) continue;
+      const cleanBlock =
+        molBlock.trim() +
+        (molBlock.trim().endsWith("$$$$") ? "" : "\n$$$$");
+
+      try {
+        const structure = await processSdfMolecule(cleanBlock);
+
+        // Require all key properties and SMILES to be present; skip molecules without them
+        if (
+          !structure.smiles ||
+          structure.properties.molecularWeight === undefined ||
+          structure.properties.logP === undefined ||
+          structure.properties.hbd === undefined ||
+          structure.properties.hba === undefined ||
+          structure.properties.sas === undefined ||
+          structure.properties.nps === undefined ||
+          structure.properties.npsConfidence === undefined
+        ) {
+          console.error(
+            `Skipping molecule without all required properties (${options.source})`,
+            {
+              smiles: structure.smiles,
+              properties: structure.properties,
+            },
+          );
+          skipped++;
+          continue;
+        }
+
+        const existing = await storage.getMoleculeBySmiles(structure.smiles);
+
+        if (existing) {
+          const existingLabel = existing.label ?? undefined;
+          const newLabel = label ?? undefined;
+
+          // If molecule exists and label matches (or both undefined/empty), skip
+          if (
+            (!existingLabel && !newLabel) ||
+            (existingLabel && newLabel && existingLabel === newLabel)
+          ) {
+            skipped++;
+            continue;
+          }
+
+          // Molecule exists but label differs: update existing label by appending new label (if not already present)
+          const labels = existingLabel
+            ? existingLabel
+                .split(";")
+                .map((l) => l.trim())
+                .filter((l) => l.length > 0)
+            : [];
+
+          if (newLabel && !labels.includes(newLabel)) {
+            labels.push(newLabel);
+          }
+
+          const updatedLabel = labels.join(";");
+
+          await db
+            .update(molecules)
+            .set({ label: updatedLabel })
+            .where(eq(molecules.id, existing.id));
+
+          processed++;
+          continue;
+        }
+
+        const moleculeData = insertMoleculeSchema.parse({
+          smiles: structure.smiles,
+          molecularWeight: structure.properties.molecularWeight.toString(),
+          logP: structure.properties.logP.toString(),
+          hbd: structure.properties.hbd,
+          hba: structure.properties.hba,
+          sas: structure.properties.sas.toString(),
+          nps: structure.properties.nps.toString(),
+          npsConfidence: structure.properties.npsConfidence.toString(),
+          sdf: structure.sdf,
+          label,
+        });
+
+        moleculesData.push(moleculeData);
+        processed++;
+      } catch (error) {
+        console.error(
+          `Error processing SDF molecule (${options.source}):`,
+          error,
+        );
+        skipped++;
+      }
+    }
+
+    if (moleculesData.length > 0) {
+      const created = await storage.createMolecules(moleculesData);
+      enqueueMlPrediction(
+        created
+          .filter((m) => !!m.smiles && typeof m.id === "number")
+          .map((m) => ({ id: m.id, smiles: m.smiles })),
+      );
+    }
+
+    return { processed, skipped };
+  }
+
+  // SDF upload endpoint for molecules (admin UI)
   app.post(
     "/api/admin/molecules/upload-sdf",
     isAuthenticated,
@@ -249,117 +368,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const sdfContent = req.file.buffer.toString();
         const label = (req.body?.label as string | undefined) || undefined;
 
-        // Split SDF content into individual molecule blocks
-        const molBlocks = sdfContent
-          .split("$$$$")
-          .filter((block) => block.trim());
-
-        let processed = 0;
-        let skipped = 0;
-        const moleculesData = [];
-
-        for (const molBlock of molBlocks) {
-          if (!molBlock.trim()) continue;
-          const cleanBlock =
-            molBlock.trim() +
-            (molBlock.trim().endsWith("$$$$") ? "" : "\n$$$$");
-
-          try {
-            // Process each SDF molecule block
-            const structure = await processSdfMolecule(cleanBlock);
-
-            // Require all key properties and SMILES to be present; skip molecules without them
-            if (
-              !structure.smiles ||
-              structure.properties.molecularWeight === undefined ||
-              structure.properties.logP === undefined ||
-              structure.properties.hbd === undefined ||
-              structure.properties.hba === undefined ||
-              structure.properties.sas === undefined ||
-              structure.properties.nps === undefined ||
-              structure.properties.npsConfidence === undefined
-            ) {
-              console.error(
-                "Skipping molecule without all required properties",
-                {
-                  smiles: structure.smiles,
-                  properties: structure.properties,
-                },
-              );
-              skipped++;
-              continue;
-            }
-
-            // Check if molecule already exists by SMILES
-            const existing = await storage.getMoleculeBySmiles(
-              structure.smiles,
-            );
-
-            // If molecule exists and label matches (or both undefined/empty), skip
-            if (existing) {
-              const existingLabel = existing.label ?? undefined;
-              const newLabel = label ?? undefined;
-
-              if (
-                (!existingLabel && !newLabel) ||
-                (existingLabel && newLabel && existingLabel === newLabel)
-              ) {
-                skipped++;
-                continue;
-              }
-
-              // Molecule exists but label differs: update existing label by appending new label (if not already present)
-              const labels = existingLabel
-                ? existingLabel.split(";").map((l) => l.trim()).filter((l) => l.length > 0)
-                : [];
-
-              if (newLabel && !labels.includes(newLabel)) {
-                labels.push(newLabel);
-              }
-
-              const updatedLabel = labels.join(";");
-
-              // Update the existing molecule's label using a direct DB update
-              await db
-                .update(molecules)
-                .set({ label: updatedLabel })
-                .where(eq(molecules.id, existing.id));
-
-              processed++;
-              continue;
-            }
-
-            // Molecule does not exist: insert as new
-            const moleculeData = insertMoleculeSchema.parse({
-              smiles: structure.smiles,
-              molecularWeight: structure.properties.molecularWeight.toString(),
-              logP: structure.properties.logP.toString(),
-              hbd: structure.properties.hbd,
-              hba: structure.properties.hba,
-              sas: structure.properties.sas.toString(),
-              nps: structure.properties.nps.toString(),
-              npsConfidence: structure.properties.npsConfidence.toString(),
-              sdf: structure.sdf,
-              label,
-            });
-
-            moleculesData.push(moleculeData);
-            processed++;
-          } catch (error) {
-            console.error(`Error processing SDF molecule:`, error);
-            skipped++;
-          }
-        }
-
-        // Batch insert molecules
-        if (moleculesData.length > 0) {
-          const created = await storage.createMolecules(moleculesData);
-          enqueueMlPrediction(
-            created
-              .filter((m) => !!m.smiles && typeof m.id === "number")
-              .map((m) => ({ id: m.id, smiles: m.smiles })),
-          );
-        }
+        const { processed, skipped } = await handleSdfUpload(sdfContent, label, {
+          source: "admin",
+        });
 
         res.json({
           message: `Successfully processed ${processed} molecules from SDF, skipped ${skipped}`,
@@ -835,7 +846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add a molecule via API token (admin-owned tokens only)
   app.post("/api/v1/molecules", authenticateApiToken, requireAdminApiToken, async (req, res) => {
     try {
-      const { smiles, molecularWeight, logP, hbd, hba, sas, nps, npsConfidence, sdf } = req.body;
+      const { smiles, molecularWeight, logP, hbd, hba, sas, nps, npsConfidence, sdf, label } = req.body;
       // Enforce required fields, including NPS properties
       if (
         !smiles ||
@@ -865,6 +876,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         nps: String(nps),
         npsConfidence: String(npsConfidence),
         sdf: sdf ?? null,
+        label: label ?? null,
       } as any);
 
       enqueueMlPrediction({ id: molecule.id, smiles: molecule.smiles });
@@ -889,80 +901,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const sdfContent = req.file.buffer.toString();
+        const label = (req.body?.label as string | undefined) || undefined;
 
-        // Split SDF content into individual molecule blocks
-        const molBlocks = sdfContent
-          .split("$$$$")
-          .filter((block) => block.trim());
-
-        let processed = 0;
-        let skipped = 0;
-        const moleculesData = [];
-
-        for (const molBlock of molBlocks) {
-          if (!molBlock.trim()) continue;
-          const cleanBlock =
-            molBlock.trim() +
-            (molBlock.trim().endsWith("$$$$") ? "" : "\n$$$$");
-
-          try {
-            // Process each SDF molecule block
-            const structure = await processSdfMolecule(cleanBlock);
-
-            // Require NPS properties to be present; skip molecules without them
-            if (
-              structure.properties.nps === undefined ||
-              structure.properties.npsConfidence === undefined
-            ) {
-              console.error(
-                "Skipping molecule without required NPS properties via API",
-                {
-                  smiles: structure.smiles,
-                  properties: structure.properties,
-                },
-              );
-              skipped++;
-              continue;
-            }
-
-            // Check if molecule already exists
-            const existing = await storage.getMoleculeBySmiles(
-              structure.smiles,
-            );
-            if (existing) {
-              skipped++;
-              continue;
-            }
-
-            const moleculeData = insertMoleculeSchema.parse({
-              smiles: structure.smiles,
-              molecularWeight: structure.properties.molecularWeight.toString(),
-              logP: structure.properties.logP.toString(),
-              hbd: structure.properties.hbd,
-              hba: structure.properties.hba,
-              sas: structure.properties.sas.toString(),
-              nps: structure.properties.nps.toString(),
-              npsConfidence: structure.properties.npsConfidence.toString(),
-              sdf: structure.sdf,
-            });
-
-            moleculesData.push(moleculeData);
-            processed++;
-          } catch (error) {
-            console.error(`Error processing SDF molecule via API:`, error);
-            skipped++;
-          }
-        }
-
-        // Batch insert molecules
-        if (moleculesData.length > 0) {
-          const created = await storage.createMolecules(moleculesData);
-          enqueueMlPrediction(
-            created
-              .filter((m) => !!m.smiles && typeof m.id === "number")
-              .map((m) => ({ id: m.id, smiles: m.smiles })),
-          );
-        }
+        const { processed, skipped } = await handleSdfUpload(sdfContent, label, {
+          source: "api",
+        });
 
         res.json({
           message: `Successfully processed ${processed} molecules from SDF via API, skipped ${skipped}`,
@@ -1015,14 +958,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const molecules = await storage.getAllMolecules();
 
       const csvHeader =
-        "ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,NPS,NPS Confidence,Created At\n";
+        "ID,SMILES,Label,Molecular Weight,LogP,HBD,HBA,SAS,NPS,NPS Confidence,ML Prediction,Created At\n";
 
       const csvRows = molecules
         .map((mol) => {
           const createdAt = mol.createdAt
             ? new Date(mol.createdAt).toISOString()
             : "";
-          return `${mol.id},"${mol.smiles}",${mol.molecularWeight},${mol.logP},${mol.hbd},${mol.hba},${mol.sas},${mol.nps ?? ""},${mol.npsConfidence ?? ""},"${createdAt}"`;
+          return `${mol.id},"${mol.smiles}","${mol.label ?? ""}",${mol.molecularWeight},${mol.logP},${mol.hbd},${mol.hba},${mol.sas},${mol.nps ?? ""},${mol.npsConfidence ?? ""},${mol.mlPrediction ?? ""},"${createdAt}"`;
         })
         .join("\n");
 
@@ -1213,28 +1156,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Stable alias endpoint for prediction that forwards to the current versioned API.
   // This allows future changes (e.g. /api/v2/predict) by only updating this proxy.
-  app.post("/api/predict", authenticateApiToken, requireAdminApiToken, async (req, res) => {
+  // Stable alias endpoint for prediction that forwards to the current versioned API.
+  // Auth is enforced by the versioned endpoint itself.
+  app.post("/api/predict", async (req, res) => {
     try {
-      // Forward the same body to the versioned prediction endpoint.
       const internalUrl = "http://localhost:5000/api/v1/predict";
 
       const response = await fetch(internalUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          // forward Authorization so /api/v1/predict can authenticate
+          Authorization: req.headers.authorization || "",
+        },
         body: JSON.stringify(req.body ?? {}),
       });
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        const message = (data as any)?.detail || (data as any)?.message || "Internal prediction API error";
+        const message =
+          (data as any)?.detail ||
+          (data as any)?.message ||
+          "Internal prediction API error";
         return res.status(response.status).json({ message });
       }
 
       return res.json(data);
     } catch (error) {
       console.error("Error forwarding to internal prediction API:", error);
-      return res.status(500).json({ message: "Failed to call internal prediction API" });
+      return res
+        .status(500)
+        .json({ message: "Failed to call internal prediction API" });
     }
   });
 
