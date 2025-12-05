@@ -30,7 +30,7 @@ export default function AdminDashboard() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [sdfFile, setSdfFile] = useState<File | null>(null);
-  const [evaluationMode, setEvaluationMode] = useState<'all' | 'unevaluated'>('all');
+  const [evaluationMode, setEvaluationMode] = useState<'all' | 'unevaluated' | 'unevaluated_by_label'>('all');
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' });
   const [editUser, setEditUser] = useState<any>(null);
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
@@ -115,17 +115,17 @@ export default function AdminDashboard() {
     enabled: isAuthenticated && user?.role === 'admin',
   });
 
-  const { data: currentEvaluationMode } = useQuery<{ mode: 'all' | 'unevaluated' | 'unevaluated_by_label' }>({
+  const { data: evaluationModeData, isLoading: evaluationModeLoading } = useQuery<{ mode: 'all' | 'unevaluated' | 'unevaluated_by_label' }>({
     queryKey: ["/api/admin/evaluation-mode"],
     enabled: isAuthenticated && user?.role === 'admin',
   });
 
   // Update evaluation mode when data changes
   useEffect(() => {
-    if (currentEvaluationMode) {
-      setEvaluationMode(currentEvaluationMode.mode);
+    if (evaluationModeData) {
+      setEvaluationMode(evaluationModeData.mode);
     }
-  }, [currentEvaluationMode]);
+  }, [evaluationModeData]);
 
   // Removed single molecule add - only SDF upload supported
 
@@ -212,6 +212,7 @@ export default function AdminDashboard() {
         title: "Success",
         description: `Evaluation mode set to: ${data.mode}`,
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/evaluation-mode"] });
     },
     onError: (error: any) => {
       toast({
