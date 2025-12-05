@@ -115,7 +115,7 @@ export default function AdminDashboard() {
     enabled: isAuthenticated && user?.role === 'admin',
   });
 
-  const { data: currentEvaluationMode } = useQuery<{ mode: 'all' | 'unevaluated' }>({
+  const { data: currentEvaluationMode } = useQuery<{ mode: 'all' | 'unevaluated' | 'unevaluated_by_label' }>({
     queryKey: ["/api/admin/evaluation-mode"],
     enabled: isAuthenticated && user?.role === 'admin',
   });
@@ -202,7 +202,7 @@ export default function AdminDashboard() {
   };
 
   const setEvaluationModeMutation = useMutation({
-    mutationFn: async (mode: 'all' | 'unevaluated') => {
+    mutationFn: async (mode: 'all' | 'unevaluated' | 'unevaluated_by_label') => {
       const response = await apiRequest("POST", "/api/admin/evaluation-mode", { mode });
       return response.json();
     },
@@ -1255,7 +1255,7 @@ export default function AdminDashboard() {
                     <Label>Select evaluation mode for users:</Label>
                     <RadioGroup 
                       value={evaluationMode} 
-                      onValueChange={(value: 'all' | 'unevaluated') => setEvaluationMode(value)}
+                      onValueChange={(value: 'all' | 'unevaluated' | 'unevaluated_by_label') => setEvaluationMode(value)}
                     >
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="all" id="all-mode" />
@@ -1267,6 +1267,12 @@ export default function AdminDashboard() {
                         <RadioGroupItem value="unevaluated" id="unevaluated-mode" />
                         <Label htmlFor="unevaluated-mode" className="cursor-pointer">
                           Only unevaluated molecules
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="unevaluated_by_label" id="unevaluated-by-label-mode" />
+                        <Label htmlFor="unevaluated-by-label-mode" className="cursor-pointer">
+                          Unevaluated, prioritizing molecules with more labels
                         </Label>
                       </div>
                     </RadioGroup>

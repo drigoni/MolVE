@@ -36,7 +36,7 @@ export interface IStorage {
   createMolecule(molecule: InsertMolecule): Promise<Molecule>;
   createMolecules(molecules: InsertMolecule[]): Promise<Molecule[]>;
   getAllMolecules(limit?: number, offset?: number): Promise<Molecule[]>;
-  getRandomMolecule(mode?: 'all' | 'unevaluated'): Promise<Molecule | undefined>;
+  getRandomMolecule(mode?: 'all' | 'unevaluated' | 'unevaluated_by_label'): Promise<Molecule | undefined>;
   deleteMolecule(id: number): Promise<void>;
   deleteAllMolecules(): Promise<void>;
   getMoleculesWithEvaluationCounts(): Promise<any[]>;
@@ -157,7 +157,7 @@ export class DatabaseStorage implements IStorage {
     return await query;
   }
 
-  async getRandomMolecule(mode: 'all' | 'unevaluated' = 'all'): Promise<Molecule | undefined> {
+  async getRandomMolecule(mode: 'all' | 'unevaluated' | 'unevaluated_by_label' = 'all'): Promise<Molecule | undefined> {
     if (mode === 'unevaluated') {
       const [molecule] = await db
         .select()
@@ -167,14 +167,29 @@ export class DatabaseStorage implements IStorage {
         .orderBy(sql`RANDOM()`)
         .limit(1);
       return molecule?.molecules;
-    } else {
+    }
+
+    if (mode === 'unevaluated_by_label') {
       const [molecule] = await db
         .select()
         .from(molecules)
-        .orderBy(sql`RANDOM()`)
+        .leftJoin(evaluations, eq(molecules.id, evaluations.moleculeId))
+        .where(sql`${evaluations.moleculeId} IS NULL`)
+        // Order unevaluated molecules by number of labels (more labels first), then random
+        .orderBy(
+          sql`(case when ${molecules.label} is null or ${molecules.label} = '' then 0 else array_length(string_to_array(${molecules.label}, ';'), 1) end) desc`,
+          sql`RANDOM()`
+        )
         .limit(1);
-      return molecule;
+      return molecule?.molecules;
     }
+
+    const [molecule] = await db
+      .select()
+      .from(molecules)
+      .orderBy(sql`RANDOM()`)
+      .limit(1);
+    return molecule;
   }
 
   async deleteMolecule(id: number): Promise<void> {

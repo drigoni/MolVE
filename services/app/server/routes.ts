@@ -678,7 +678,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         // Get the evaluation mode from database settings
         const setting = await storage.getSetting("evaluation_mode");
-        const evaluationMode = setting?.value === "unevaluated" ? "unevaluated" : "all";
+        const evaluationMode =
+          setting?.value === "unevaluated" || setting?.value === "unevaluated_by_label"
+            ? (setting.value as "unevaluated" | "unevaluated_by_label")
+            : "all";
         const molecule = await storage.getRandomMolecule(evaluationMode);
 
         if (!molecule) {
@@ -703,7 +706,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req, res) => {
       try {
         const setting = await storage.getSetting("evaluation_mode");
-        const mode = setting?.value === "unevaluated" ? "unevaluated" : "all";
+        const mode =
+          setting?.value === "unevaluated" || setting?.value === "unevaluated_by_label"
+            ? (setting.value as "unevaluated" | "unevaluated_by_label")
+            : "all";
         res.json({ mode });
       } catch (error) {
         res.status(500).json({ message: "Failed to get evaluation mode" });
@@ -719,7 +725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req, res) => {
       try {
         const { mode } = req.body;
-        if (mode !== "all" && mode !== "unevaluated") {
+        if (mode !== "all" && mode !== "unevaluated" && mode !== "unevaluated_by_label") {
           return res.status(400).json({ message: "Invalid mode" });
         }
 

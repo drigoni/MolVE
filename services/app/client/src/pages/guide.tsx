@@ -234,13 +234,20 @@ const GuidePage: React.FC = () => {
                 </li>
                 <li>
                   <code>GET /api/admin/evaluation-mode</code> – get current
-                  evaluation mode (<code>all</code> or
+                  evaluation mode (<code>all</code>,
                   {" "}
-                  <code>unevaluated</code>).
+                  <code>unevaluated</code>, or
+                  {" "}
+                  <code>unevaluated_by_label</code>).
                 </li>
                 <li>
                   <code>POST /api/admin/evaluation-mode</code> – update
-                  evaluation mode.
+                  evaluation mode. Body:
+                  {" "}
+                  <code>
+                    {'{ "mode": "all" | "unevaluated" | "unevaluated_by_label" }'}
+                  </code>
+                  .
                 </li>
                 <li>
                   <code>GET /api/admin/settings</code> – get admin‑configurable
