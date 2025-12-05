@@ -73,6 +73,9 @@ export default function History() {
                         LogP
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        ML Prediction
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Evaluation
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -97,6 +100,12 @@ export default function History() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {evaluation.molecule.logP}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {evaluation.molecule.mlPrediction === 0 && "Do Not Prioritize"}
+                          {evaluation.molecule.mlPrediction === 1 && "Borderline"}
+                          {evaluation.molecule.mlPrediction === 2 && "Prioritize"}
+                          {evaluation.molecule.mlPrediction == null && "Pending"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

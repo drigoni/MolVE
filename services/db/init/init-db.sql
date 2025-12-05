@@ -80,11 +80,13 @@ ALTER SEQUENCE public.evaluations_id_seq OWNED BY public.evaluations.id;
 CREATE TABLE public.molecules (
     id integer NOT NULL,
     smiles text NOT NULL,
+    label text,
     molecular_weight numeric(10,4),
     log_p numeric(10,4),
     hbd integer,
     hba integer,
     sas numeric(10,4),
+    ml_prediction integer,
     created_at timestamp without time zone DEFAULT now(),
     nps numeric(10,4),
     nps_confidence numeric(10,4),
@@ -214,10 +216,6 @@ CREATE TABLE public.api_tokens (
     token TEXT NOT NULL,
     created_at timestamp without time zone DEFAULT now()
 );
-
-
-COPY public.molecules (id, smiles, molecular_weight, log_p, hbd, hba, sas, nps, nps_confidence, created_at, sdf) FROM stdin;
-\.
 
 
 --

@@ -41,6 +41,7 @@ export const users = pgTable("users", {
 export const molecules = pgTable("molecules", {
   id: serial("id").primaryKey(),
   smiles: text("smiles").notNull(),
+  label: text("label"),
   molecularWeight: text("molecular_weight").notNull(),
   logP: text("log_p").notNull(),
   hbd: integer("hbd").notNull(),
@@ -49,6 +50,8 @@ export const molecules = pgTable("molecules", {
   nps: text("nps").notNull(),
   npsConfidence: text("nps_confidence").notNull(),
   sdf: text("sdf"),
+  // Random Forest-based ML prediction: 0=Do Not Prioritize, 1=Borderline, 2=Prioritize
+  mlPrediction: integer("ml_prediction"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

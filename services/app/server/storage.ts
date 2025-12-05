@@ -40,6 +40,7 @@ export interface IStorage {
   deleteMolecule(id: number): Promise<void>;
   deleteAllMolecules(): Promise<void>;
   getMoleculesWithEvaluationCounts(): Promise<any[]>;
+  updateMoleculeMlPrediction(id: number, mlPrediction: number): Promise<void>;
   
   // Evaluation operations
   createEvaluation(evaluation: InsertEvaluation): Promise<Evaluation>;
@@ -190,6 +191,13 @@ export class DatabaseStorage implements IStorage {
     await db.delete(molecules);
   }
 
+  async updateMoleculeMlPrediction(id: number, mlPrediction: number): Promise<void> {
+    await db
+      .update(molecules)
+      .set({ mlPrediction })
+      .where(eq(molecules.id, id));
+  }
+
   async getMoleculesWithEvaluationCounts(): Promise<any[]> {
     const results = await db
       .select({
@@ -323,6 +331,7 @@ export class DatabaseStorage implements IStorage {
       evaluationId: result.evaluations.id,
       moleculeId: result.molecules.id,
       smiles: result.molecules.smiles,
+      label: (result.molecules as any).label,
       molecularWeight: result.molecules.molecularWeight,
       logP: result.molecules.logP,
       hbd: result.molecules.hbd,
@@ -330,6 +339,7 @@ export class DatabaseStorage implements IStorage {
       sas: result.molecules.sas,
       nps: (result.molecules as any).nps,
       npsConfidence: (result.molecules as any).npsConfidence,
+      mlPrediction: (result.molecules as any).mlPrediction,
       evaluation: result.evaluations.evaluation,
       notes: result.evaluations.notes,
       issueSolubility: result.evaluations.issueSolubility,

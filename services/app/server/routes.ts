@@ -5,6 +5,7 @@ import { setupAuth, isAuthenticated, isAdmin, isUser, authenticateApiToken, requ
 import { processSdfMolecule } from "./services/molecular";
 import fetch from "node-fetch";
 import { insertMoleculeSchema, insertEvaluationSchema } from "@shared/schema";
+import { enqueueMlPrediction } from "./mlPredictionQueue";
 import multer from "multer";
 // Removed CSV parsing - only SDF supported
 import bcrypt from "bcrypt";
@@ -114,7 +115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Create CSV header (including NPS fields)
         const csvHeader =
-          "ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,NPS,NPS Confidence,Created At\n";
+          "ID,SMILES,Label,Molecular Weight,LogP,HBD,HBA,SAS,NPS,NPS Confidence,ML Prediction,Created At\n";
 
         // Create CSV rows
         const csvRows = molecules
@@ -122,7 +123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const createdAt = mol.createdAt
               ? new Date(mol.createdAt).toISOString()
               : "";
-            return `${mol.id},"${mol.smiles}",${mol.molecularWeight},${mol.logP},${mol.hbd},${mol.hba},${mol.sas},${mol.nps ?? ""},${mol.npsConfidence ?? ""},"${createdAt}"`;
+            return `${mol.id},"${mol.smiles}","${mol.label ?? ""}",${mol.molecularWeight},${mol.logP},${mol.hbd},${mol.hba},${mol.sas},${mol.nps ?? ""},${mol.npsConfidence ?? ""},${mol.mlPrediction ?? ""},"${createdAt}"`;
           })
           .join("\n");
 
@@ -245,6 +246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const sdfContent = req.file.buffer.toString();
+        const label = (req.body?.label as string | undefined) || undefined;
 
         // Split SDF content into individual molecule blocks
         const molBlocks = sdfContent
@@ -299,6 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               nps: structure.properties.nps.toString(),
               npsConfidence: structure.properties.npsConfidence.toString(),
               sdf: structure.sdf,
+              label,
             });
 
             moleculesData.push(moleculeData);
@@ -311,7 +314,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Batch insert molecules
         if (moleculesData.length > 0) {
-          await storage.createMolecules(moleculesData);
+          const created = await storage.createMolecules(moleculesData);
+          enqueueMlPrediction(
+            created
+              .filter((m) => !!m.smiles && typeof m.id === "number")
+              .map((m) => ({ id: m.id, smiles: m.smiles })),
+          );
         }
 
         res.json({
@@ -492,7 +500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // CSV header: keep it aligned with the values below
         const csvHeader =
-          "Molecule ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,NPS,NPS Confidence,Evaluation,Notes,Issue Solubility,Issue Synthetic Accessibility,Issue Dimension,Issue Permeability,Username,Date\n";
+          "Molecule ID,SMILES,Label,Molecular Weight,LogP,HBD,HBA,SAS,NPS,NPS Confidence,ML Prediction,Evaluation,Notes,Issue Solubility,Issue Synthetic Accessibility,Issue Dimension,Issue Permeability,Username,Date\n";
 
         const csvData = dataset
           .map((row) => {
@@ -506,6 +514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const values = [
               esc(row.moleculeId),
               esc(row.smiles),
+              esc(row.label ?? ""),
               esc(row.molecularWeight),
               esc(row.logP),
               esc(row.hbd ?? ""),
@@ -513,6 +522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               esc(row.sas ?? ""),
               esc(row.nps ?? ""),
               esc(row.npsConfidence ?? ""),
+              esc(row.mlPrediction ?? ""),
               esc(row.evaluation),
               esc(row.notes || ""),
               row.issueSolubility ? "1" : "0",
@@ -812,6 +822,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sdf: sdf ?? null,
       } as any);
 
+      enqueueMlPrediction({ id: molecule.id, smiles: molecule.smiles });
+
       res.status(201).json(molecule);
     } catch (error) {
       console.error("Error creating molecule via API:", error);
@@ -899,7 +911,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Batch insert molecules
         if (moleculesData.length > 0) {
-          await storage.createMolecules(moleculesData);
+          const created = await storage.createMolecules(moleculesData);
+          enqueueMlPrediction(
+            created
+              .filter((m) => !!m.smiles && typeof m.id === "number")
+              .map((m) => ({ id: m.id, smiles: m.smiles })),
+          );
         }
 
         res.json({
@@ -984,7 +1001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const dataset = await storage.getEvaluationDataset();
       // CSV header: keep it aligned with the values below (15 columns)
       const csvHeader =
-        "Molecule ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,NPS,NPS Confidence,Evaluation,Notes,Issue Solubility,Issue Synthetic Accessibility,Issue Dimension,Issue Permeability,Username,Date\n";
+        "Molecule ID,SMILES,Molecular Weight,LogP,HBD,HBA,SAS,NPS,NPS Confidence,ML Prediction,Evaluation,Notes,Issue Solubility,Issue Synthetic Accessibility,Issue Dimension,Issue Permeability,Username,Date\n";
 
       const csvData = dataset
         .map((row) => {
@@ -1005,6 +1022,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             esc(row.sas ?? ""),
             esc(row.nps ?? ""),
             esc(row.npsConfidence ?? ""),
+            esc(row.mlPrediction ?? ""),
             esc(row.evaluation),
             esc(row.notes || ""),
             row.issueSolubility ? "1" : "0",
@@ -1147,6 +1165,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: "Failed to predict the priority via Python service" });
     }
   });
+
+  // Stable alias endpoint for prediction that forwards to the current versioned API.
+  // This allows future changes (e.g. /api/v2/predict) by only updating this proxy.
+  app.post("/api/predict", authenticateApiToken, requireAdminApiToken, async (req, res) => {
+    try {
+      // Forward the same body to the versioned prediction endpoint.
+      const internalUrl = "http://localhost:5000/api/v1/predict";
+
+      const response = await fetch(internalUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body ?? {}),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message = (data as any)?.detail || (data as any)?.message || "Internal prediction API error";
+        return res.status(response.status).json({ message });
+      }
+
+      return res.json(data);
+    } catch (error) {
+      console.error("Error forwarding to internal prediction API:", error);
+      return res.status(500).json({ message: "Failed to call internal prediction API" });
+    }
+  });
+
+  // Recompute ML prediction for all molecules by enqueuing them again
+  // into the background ML prediction queue. This keeps the HTTP
+  // request fast while the work is done asynchronously.
+  app.post(
+    "/api/admin/recompute-ml-predictions",
+    isAuthenticated,
+    isAdmin,
+    async (req, res) => {
+      try {
+        const molecules = await storage.getAllMolecules();
+
+        enqueueMlPrediction(
+          molecules
+            .filter((m: any) => !!m.smiles && typeof m.id === "number")
+            .map((m: any) => ({ id: m.id, smiles: m.smiles })),
+        );
+
+        res.json({ message: "ML predictions recomputation enqueued for all molecules" });
+      } catch (error) {
+        console.error("Error recomputing ML predictions:", error);
+        res
+          .status(500)
+          .json({ message: "Failed to recompute ML predictions for molecules" });
+      }
+    },
+  );
 
   const httpServer = createServer(app);
   return httpServer;

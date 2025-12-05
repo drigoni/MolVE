@@ -92,6 +92,8 @@ export default function AdminDashboard() {
 
   const molecules = moleculesPageData?.items ?? [];
 
+  const [sdfLabel, setSdfLabel] = useState("");
+
   const { data: evaluationsPageData, isLoading: evaluationsLoading, refetch: refetchEvaluations } = useQuery<PaginatedResponse<EvaluationWithMolecule>>({
     queryKey: ["/api/admin/evaluations", evaluationsPage],
     queryFn: async () => {
@@ -364,10 +366,34 @@ export default function AdminDashboard() {
     },
   });
 
+  const recomputeMlPredictions = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/admin/recompute-ml-predictions", {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "ML Predictions Recomputed",
+        description: data.message || "ML predictions recomputation started for all molecules.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/molecules"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to recompute ML predictions",
+        variant: "destructive",
+      });
+    },
+  });
+
   const uploadSdf = useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('sdf', file);
+      if (sdfLabel.trim()) {
+        formData.append('label', sdfLabel.trim());
+      }
       const response = await fetch("/api/admin/molecules/upload-sdf", {
         method: "POST",
         body: formData,
@@ -384,6 +410,7 @@ export default function AdminDashboard() {
         description: data.message || "SDF file uploaded successfully",
       });
       setSdfFile(null);
+      setSdfLabel("");
       queryClient.invalidateQueries({ queryKey: ["/api/admin/molecules"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/molecules/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
@@ -592,6 +619,22 @@ export default function AdminDashboard() {
                 <CardContent>
                   <div className="space-y-4">
                     <div>
+                      <Label htmlFor="sdf-label" className="text-sm font-medium">
+                        Label (optional)
+                      </Label>
+                      <p className="text-xs text-gray-500 mb-2">
+                        This label will be associated with all molecules imported from this SDF file.
+                      </p>
+                      <Input
+                        id="sdf-label"
+                        type="text"
+                        value={sdfLabel}
+                        onChange={(e) => setSdfLabel(e.target.value)}
+                        placeholder="e.g. Model V.1"
+                        disabled={uploadSdf.isPending}
+                      />
+                    </div>
+                    <div>
                       <Label htmlFor="sdf-input" className="text-sm font-medium">
                         SDF File Upload
                       </Label>
@@ -705,6 +748,9 @@ export default function AdminDashboard() {
                               SMILES
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Label
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               MW (g/mol)
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -726,6 +772,9 @@ export default function AdminDashboard() {
                               NPS Confidence
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              ML Prediction
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Created
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -738,6 +787,9 @@ export default function AdminDashboard() {
                             <tr key={molecule.id}>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
                                 {molecule.smiles}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {molecule.label ?? "—"}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {molecule.molecularWeight}
@@ -759,6 +811,12 @@ export default function AdminDashboard() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {molecule.npsConfidence}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {molecule.mlPrediction === 0 && "Do Not Prioritize"}
+                                {molecule.mlPrediction === 1 && "Borderline"}
+                                {molecule.mlPrediction === 2 && "Prioritize"}
+                                {molecule.mlPrediction == null && "Pending"}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {molecule.createdAt ? new Date(molecule.createdAt).toLocaleDateString() : "-"}
@@ -856,6 +914,12 @@ export default function AdminDashboard() {
                             SMILES
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Label
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            ML Prediction
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Evaluation
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -880,6 +944,15 @@ export default function AdminDashboard() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
                               {evaluation.molecule.smiles}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {evaluation.molecule.label ?? '—'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {evaluation.molecule?.mlPrediction === 0 && "Do Not Prioritize"}
+                              {evaluation.molecule?.mlPrediction === 1 && "Borderline"}
+                              {evaluation.molecule?.mlPrediction === 2 && "Prioritize"}
+                              {evaluation.molecule?.mlPrediction == null && "Pending"}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -1188,6 +1261,21 @@ export default function AdminDashboard() {
                         onCheckedChange={handleGuestViewingToggle}
                         disabled={updateSettings.isPending}
                       />
+                    </div>
+                    <div className="flex items-center justify-between pt-4 border-t">
+                      <div className="space-y-0.5">
+                        <Label className="text-base">Recompute ML Predictions</Label>
+                        <div className="text-sm text-muted-foreground">
+                          Force recalculation of ML predictions for all molecules using the Python service.
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => recomputeMlPredictions.mutate()}
+                        disabled={recomputeMlPredictions.isPending}
+                        className="bg-scientific-blue hover:bg-scientific-blue/90"
+                      >
+                        {recomputeMlPredictions.isPending ? "Recomputing..." : "Recompute"}
+                      </Button>
                     </div>
                   </div>
                 </CardContent>

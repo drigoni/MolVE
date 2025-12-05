@@ -79,7 +79,6 @@ export default function UserEvaluation() {
       });
     },
   });
-
   // Set initial molecule when loaded
   useEffect(() => {
     if (initialMolecule && !currentMolecule) {
@@ -282,6 +281,7 @@ export default function UserEvaluation() {
 
                     <div className="space-y-3">
                       <Label>Select evaluation priority:</Label>
+
                       <RadioGroup
                         value={selectedEvaluation}
                         onValueChange={setSelectedEvaluation}
@@ -407,18 +407,29 @@ export default function UserEvaluation() {
                 <CardHeader>
                   <CardTitle>Molecular Information</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* SMILES */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">
-                      Canonical SMILES
-                    </h4>
-                    <code
-                      className={`bg-gray-100 px-3 py-2 rounded-md text-sm font-mono block break-words whitespace-pre-wrap ${moleculeLoading ? "opacity-50" : ""}`}
-                    >
-                      {currentMolecule?.smiles || "Loading..."}
-                    </code>
-                  </div>
+                 <CardContent className="space-y-4">
+                   {/* SMILES and Label */}
+                   <div className="space-y-1">
+                     <div>
+                       <h4 className="text-sm font-medium mb-2">
+                         Canonical SMILES
+                       </h4>
+                       <code
+                         className={`bg-gray-100 px-3 py-2 rounded-md text-sm font-mono block break-words whitespace-pre-wrap ${moleculeLoading ? "opacity-50" : ""}`}
+                       >
+                         {currentMolecule?.smiles || "Loading..."}
+                       </code>
+                     </div>
+                     {currentMolecule?.label && (
+                       <div className="text-sm text-gray-700">
+                         <span className="font-semibold">Label:</span>{" "}
+                         {/* {currentMolecule.label} */}
+                         <Badge variant="secondary">
+                          {currentMolecule.label}
+                        </Badge>
+                       </div>
+                     )}
+                   </div>
 
                   {/* Properties */}
                   <div>
@@ -476,6 +487,17 @@ export default function UserEvaluation() {
                         </p>
                         <Badge variant="secondary">
                           {currentMolecule?.npsConfidence ?? '--'}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-600">
+                          ML Prediction
+                        </p>
+                        <Badge variant="secondary">
+                          {currentMolecule?.mlPrediction === 0 && "Do Not Prioritize"}
+                          {currentMolecule?.mlPrediction === 1 && "Borderline"}
+                          {currentMolecule?.mlPrediction === 2 && "Prioritize"}
+                          {currentMolecule?.mlPrediction == null && "Pending"}
                         </Badge>
                       </div>
                     </div>
