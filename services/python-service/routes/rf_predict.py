@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from rdkit import Chem
-from rdkit.Chem import AllChem
+from rdkit.Chem.rdFingerprintGenerator import GetMorganGenerator
 import numpy as np
 import joblib
 
@@ -38,8 +38,9 @@ def _smiles_to_fingerprint(smiles: str, radius: int = 2, n_bits: int = 2048) -> 
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise HTTPException(status_code=400, detail="Invalid SMILES string")
-    fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius, nBits=n_bits)
-    arr = np.array(fp).reshape(1, -1)
+    generator = GetMorganGenerator(radius=radius, fpSize=n_bits)
+    fp = generator.GetFingerprint(mol)
+    arr = np.array(fp, dtype=int).reshape(1, -1)
     return arr
 
 
@@ -54,4 +55,7 @@ def rf_predict(payload: RFPredictRequest) -> RFPredictResponse:
         raise HTTPException(status_code=500, detail=f"Model prediction failed: {exc}")
 
     prediction_int = int(pred[0])
+
+    # adjust score from 0->0 and 1->2
+    prediction_int = prediction_int * 2
     return RFPredictResponse(smiles=payload.smiles, prediction=prediction_int)

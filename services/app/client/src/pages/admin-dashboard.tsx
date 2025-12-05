@@ -661,42 +661,6 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Evaluation Mode Settings */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Evaluation Mode</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <Label>Select evaluation mode for users:</Label>
-                    <RadioGroup 
-                      value={evaluationMode} 
-                      onValueChange={(value: 'all' | 'unevaluated') => setEvaluationMode(value)}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="all" id="all-mode" />
-                        <Label htmlFor="all-mode" className="cursor-pointer">
-                          All molecules (including evaluated)
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="unevaluated" id="unevaluated-mode" />
-                        <Label htmlFor="unevaluated-mode" className="cursor-pointer">
-                          Only unevaluated molecules
-                        </Label>
-                      </div>
-                    </RadioGroup>
-                    <Button 
-                      onClick={() => setEvaluationModeMutation.mutate(evaluationMode)}
-                      disabled={setEvaluationModeMutation.isPending}
-                      className="bg-scientific-blue hover:bg-scientific-blue/90"
-                    >
-                      {setEvaluationModeMutation.isPending ? "Updating..." : "Update Mode"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
               {/* Molecules list */}
               <Card>
                 <CardHeader>
@@ -1277,6 +1241,42 @@ export default function AdminDashboard() {
                         {recomputeMlPredictions.isPending ? "Recomputing..." : "Recompute"}
                       </Button>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+                            {/* Evaluation Mode Settings */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Evaluation Mode</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <Label>Select evaluation mode for users:</Label>
+                    <RadioGroup 
+                      value={evaluationMode} 
+                      onValueChange={(value: 'all' | 'unevaluated') => setEvaluationMode(value)}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="all" id="all-mode" />
+                        <Label htmlFor="all-mode" className="cursor-pointer">
+                          All molecules (including evaluated)
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="unevaluated" id="unevaluated-mode" />
+                        <Label htmlFor="unevaluated-mode" className="cursor-pointer">
+                          Only unevaluated molecules
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                    <Button 
+                      onClick={() => setEvaluationModeMutation.mutate(evaluationMode)}
+                      disabled={setEvaluationModeMutation.isPending}
+                      className="bg-scientific-blue hover:bg-scientific-blue/90"
+                    >
+                      {setEvaluationModeMutation.isPending ? "Updating..." : "Update Mode"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
