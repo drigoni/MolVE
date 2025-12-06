@@ -698,7 +698,9 @@ print("Predicted priority score:", score)`}
                 </li>
                 <li>
                   A <strong>3D viewer</strong> powered by JSmol for interactive
-                  rotation and zoom based on the stored SDF.
+                  rotation and zoom based on the stored SDF. Specifically, use left 
+                  click to rotate, scroll to zoom, and right click for more interaction 
+                  options with the 3D molecule.
                 </li>
                 <li>
                   Molecule metadata such as SMILES and identifiers, as stored in

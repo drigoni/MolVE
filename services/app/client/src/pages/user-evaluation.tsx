@@ -521,6 +521,10 @@ export default function UserEvaluation() {
               <Card className="relative">
                 <CardHeader>
                   <CardTitle>Molecular 3D Structure</CardTitle>
+                  <p className="mt-1 text-xs text-gray-600 max-w-xxl">
+                    Tip: use left click to rotate, scroll to zoom, and
+                    right click for more interaction options with the 3D molecule.
+                  </p>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
