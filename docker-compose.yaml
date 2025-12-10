@@ -11,6 +11,7 @@ services:
       - "5000:5000"     # Port for the main application
       - "9229:9229"     # Port for Node.js debugger
     environment:
+      - SDF_MAX_UPLOAD_MB=100
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:password@db:5432/molecular_app
       - PGDATABASE=molecular_app

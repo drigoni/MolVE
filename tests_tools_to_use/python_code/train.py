@@ -203,6 +203,21 @@ def train_and_select_model(
 		stratify=y,
 	)
 
+	# Print dataset details
+	n_train, n_test = X_train.shape[0], X_test.shape[0]
+	train_class_counts = np.bincount(y_train)
+	test_class_counts = np.bincount(y_test)
+
+	print("\nDataset split details:")
+	print(f"  Training examples: {n_train}")
+	print(f"  Test examples:     {n_test}")
+	print("  Training class distribution (label: count):")
+	for label, count in enumerate(train_class_counts):
+		print(f"    {label}: {count}")
+	print("  Test class distribution (label: count):")
+	for label, count in enumerate(test_class_counts):
+		print(f"    {label}: {count}")
+
 	base_rf = RandomForestClassifier(
 		random_state=random_state,
 		n_jobs=-1,

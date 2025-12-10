@@ -137,10 +137,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createMolecules(moleculesData: InsertMolecule[]): Promise<Molecule[]> {
-    return await db
-      .insert(molecules)
-      .values(moleculesData)
-      .returning();
+    // Insert in batches to avoid exceeding PostgreSQL parameter limits
+    const batchSize = 500;
+    const created: Molecule[] = [];
+
+    for (let i = 0; i < moleculesData.length; i += batchSize) {
+      const batch = moleculesData.slice(i, i + batchSize);
+      const rows = await db
+        .insert(molecules)
+        .values(batch)
+        .returning();
+      created.push(...rows);
+    }
+
+    return created;
   }
 
   async getAllMolecules(limit?: number, offset?: number): Promise<Molecule[]> {

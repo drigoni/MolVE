@@ -17,6 +17,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
   // Configure multer for file uploads
+  const maxSdfUploadMb = Number(process.env.SDF_MAX_UPLOAD_MB ?? "50");
+  const maxSdfUploadBytes =
+    Number.isFinite(maxSdfUploadMb) && maxSdfUploadMb > 0
+      ? maxSdfUploadMb * 1024 * 1024
+      : 50 * 1024 * 1024;
+
   const upload = multer({
     storage: multer.memoryStorage(),
     fileFilter: (req, file, cb) => {
@@ -26,7 +32,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cb(new Error("Only SDF files are allowed"), false);
       }
     },
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+    limits: { fileSize: maxSdfUploadBytes },
   });
 
   // --- API token management for logged-in users ---
