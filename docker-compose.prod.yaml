@@ -7,6 +7,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "5000:5000"     # Expose only the main application port
+      - "443:443"       # Port for HTTPS
     environment:
       - SDF_MAX_UPLOAD_MB=100
       - NODE_ENV=production
@@ -29,7 +30,8 @@ services:
     networks:
       - app_network
     restart: unless-stopped
-    command: npm run start
+    # Use the image default CMD (initial_configs/start.sh),
+    # which waits for DB, generates certs if needed, then runs npm start.
 
   python-service:
     build:

@@ -24,7 +24,8 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy only app context (this folder already contains server, client, shared, configs at build time)
+
+# Copy app context
 COPY . .
 
 RUN python3 -m venv /venv

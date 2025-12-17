@@ -27,6 +27,15 @@ npm run db:push
 
 echo "Database schema updated successfully!"
 
+echo "Checking for SSL certificates..."
+CERT_DIR="/app/certs"
+if [ ! -f "$CERT_DIR/cert.pem" ] || [ ! -f "$CERT_DIR/key.pem" ]; then
+  echo "SSL certificates not found, generating self-signed certs..."
+  bash "$CERT_DIR/generate-self-signed-cert.sh"
+else
+  echo "SSL certificates found."
+fi
+
 echo "Starting application server..."
 # Start the application
 exec npm start

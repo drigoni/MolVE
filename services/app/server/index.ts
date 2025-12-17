@@ -1,6 +1,9 @@
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import fs from "fs";
+import https from "https";
 
 const app = express();
 app.use(express.json());
@@ -52,19 +55,48 @@ app.use((req, res, next) => {
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
+    const port = 5000;
+    server.listen({
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    }, () => {
+      log(`serving HTTP (dev) on port ${port}`);
+    });
+  } else {
+    // Production: serve static assets and prefer HTTPS if certs are available
+    serveStatic(app);
+
+    const certPath = process.env.SSL_CERT_PATH || "/app/certs/cert.pem";
+    const keyPath = process.env.SSL_KEY_PATH || "/app/certs/key.pem";
+    const httpsPort = 443;
+    const httpPort = 5000;
+
+    let useHttps = false;
+    let credentials: { key?: Buffer; cert?: Buffer } = {};
+    try {
+      credentials = {
+        key: fs.readFileSync(keyPath),
+        cert: fs.readFileSync(certPath),
+      };
+      useHttps = true;
+    } catch (err) {
+      log("SSL certificates not found or invalid, falling back to HTTP.");
+    }
+
+    if (useHttps) {
+      https.createServer(credentials, app).listen(httpsPort, "0.0.0.0", () => {
+        log(`serving HTTPS on port ${httpsPort}`);
+      });
+    } else {
+      server.listen({
+        port: httpPort,
+        host: "0.0.0.0",
+        reusePort: true,
+      }, () => {
+        log(`serving HTTP on port ${httpPort}`);
+      });
+    }
+  }
 })();
