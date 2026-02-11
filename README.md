@@ -1,9 +1,21 @@
 # MolVE: An Open-Source Web Platform for Visualizing and Evaluating AI-Designed Molecules to Aid in Prioritization
-This repository contains the code used to generate the results reported in the paper: [MolVE: An Open-Source Web Platform for Visualizing and Evaluating AI-Designed Molecules to Aid in Prioritization]().
+This repository contains the code used to generate the results reported in the paper: [MolVE: An Open-Source Web Platform for Visualizing and Evaluating AI-Designed Molecules to Aid in Prioritization](https://pubs.acs.org/doi/10.1021/acs.jcim.5c02412).
 
-<!-- ```
-Add bibtex citation here!
-``` -->
+```
+@article{doi:10.1021/acs.jcim.5c02412,
+  author  = {Rigoni, Davide and Sperduti, Alessandro and Moro, Stefano},
+  title   = {MolVE: An Open-Source Web Platform for Visualizing and Evaluating AI-Designed Molecules to Aid in Prioritization},
+  journal = {Journal of Chemical Information and Modeling},
+  volume  = {0},
+  number  = {0},
+  pages   = {null},
+  year    = {0},
+  doi     = {10.1021/acs.jcim.5c02412},
+  note    = {PMID: 41667067},
+  URL     = {https://doi.org/10.1021/acs.jcim.5c02412},
+  eprint  = {https://doi.org/10.1021/acs.jcim.5c02412}
+}
+```
 
 MolVE is an open-source, web-based platform for collaborative, expert-driven assessment of molecules (e.g. AI-generated candidates). It provides secure authentication, dataset management (SDF import/export), a simple evaluation workflow (one molecule at a time), interactive 2D/3D visualisation (ChemDoodle + JSmol), and programmatic APIs (API tokens) for automation and integration.
 
